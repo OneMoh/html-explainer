@@ -50,7 +50,7 @@ Node scripts, so you can also run it by hand.
 
 You say one sentence:
 
-> Make a 3-minute explainer video about why the sky is blue.
+> Make a 1-minute explainer video about why the sky is blue.
 
 The skill then walks the agent through: research → script → voiceover → subtitles and beats →
 scene authoring in one of 23 styles → render → QC → covers.
