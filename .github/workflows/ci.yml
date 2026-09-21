@@ -7,6 +7,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Windows runner 的管道默认编码是 cp1252，脚本输出 ✓ 等字符会直接 UnicodeEncodeError。
+# 全局强制 UTF-8：ubuntu 上无感，windows 上是生死线。
+env:
+  PYTHONUTF8: "1"
+
 # 每个分支只关心最新一次运行；被取代的自动取消。
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
