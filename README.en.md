@@ -21,18 +21,12 @@ locally; the core pipeline needs no API key and charges no per-render fee.
 <br/>
 
 Three finished videos made with this skill — visuals, voiceover, subtitles and covers all
-produced by the pipeline, no manual post-production. The media lives in a separate
+produced by the pipeline, no manual post-production. Covers and other assets live in a separate
 [demos repository](https://github.com/OneMoh/html-explainer-demos); this repo stays text-only.
 
-<br/>
-
-<video src="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/videos/01-ai-era-self-made-video.mp4" poster="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/covers/01-ai-era-self-made-video.png" controls width="86%"></video>
-
-<br/>
-
-<video src="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/videos/02-hk-innovative-drug-early-session.mp4" poster="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/covers/02-hk-innovative-drug-early-session.png" controls width="42.5%"></video> <video src="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/videos/03-quant-company-built-an-llm.mp4" poster="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/covers/03-quant-company-built-an-llm.png" controls width="42.5%"></video>
-
-<br/>
+| Skill intro | HK innovative drugs | A quant firm built an LLM |
+|---|---|---|
+| https://github.com/user-attachments/assets/912e6c2d-831f-43dd-a39f-57b749bb417d | https://github.com/user-attachments/assets/8007843c-088d-457c-8550-81ec912e0add | https://github.com/user-attachments/assets/28949988-449b-4c4e-8d0f-6706af6f64ee |
 
 </div>
 

@@ -20,17 +20,11 @@ HTML 写画面 → 确定性逐帧渲染 → 真 MP4。全本地跑，核心链�
 <br/>
 
 三条用本技能生成的成片——画面、配音、字幕、封面全部由流水线产出，无手工后期。
-视频与封面托管在[演示仓库](https://github.com/OneMoh/html-explainer-demos)，本仓库零体积。
+封面等素材托管在[演示仓库](https://github.com/OneMoh/html-explainer-demos)，本仓库零体积。
 
-<br/>
-
-<video src="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/videos/01-ai-era-self-made-video.mp4" poster="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/covers/01-ai-era-self-made-video.png" controls width="86%"></video>
-
-<br/>
-
-<video src="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/videos/02-hk-innovative-drug-early-session.mp4" poster="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/covers/02-hk-innovative-drug-early-session.png" controls width="42.5%"></video> <video src="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/videos/03-quant-company-built-an-llm.mp4" poster="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/covers/03-quant-company-built-an-llm.png" controls width="42.5%"></video>
-
-<br/>
+| 技能介绍片 | 港股创新药 · 早盘 | 量化简史 |
+|---|---|---|
+| https://github.com/user-attachments/assets/912e6c2d-831f-43dd-a39f-57b749bb417d | https://github.com/user-attachments/assets/8007843c-088d-457c-8550-81ec912e0add | https://github.com/user-attachments/assets/28949988-449b-4c4e-8d0f-6706af6f64ee |
 
 </div>
 
