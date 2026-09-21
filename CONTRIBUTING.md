@@ -1,44 +1,42 @@
-# Contributing to html-explainer
+# 参与贡献
 
-Thanks for taking the time to contribute. This document covers the practical things:
-how to get a working environment, what the project's hard rules are, and where different
-kinds of contributions actually belong.
+感谢你愿意花时间。本文只说实际的东西：怎么把环境跑起来、项目的硬性规则有哪些、
+以及不同类型的贡献该往哪儿放。
 
-## Ways to contribute
+## 可以贡献什么
 
-| Kind of contribution | Where it goes |
+| 贡献类型 | 该往哪儿放 |
 |---|---|
-| Bug report | [Open an issue](https://github.com/OneMoh/html-explainer/issues/new/choose) using the bug template |
-| Rendering / sync bug you diagnosed | Add a numbered entry to `references/lessons.md` **and** fix the code |
-| New visual style or a better adaptation recipe | `references/style-catalog.md` notes + a documented example |
-| Documentation fix | Direct PR — typo fixes need no prior discussion |
-| New feature | Open an issue first so the approach can be agreed before you write it |
-| Platform-specific fix (macOS / Linux paths, shell variants) | Very welcome — the project is developed on Windows + Git Bash |
+| 报告 Bug | 用 bug 模板[开一个 issue](https://github.com/OneMoh/html-explainer/issues/new/choose) |
+| 你已定位的渲染 / 同步问题 | 在 `references/lessons.md` 追加一条编号记录，**并且**修代码 |
+| 新的画面风格，或更好的改编配方 | 更新 `references/style-catalog.md`，并附一个可运行的示例 |
+| 文档修正 | 直接提 PR —— 改错别字不需要先讨论 |
+| 新功能 | 先开 issue 把方案谈拢，再动手写 |
+| 平台相关修复（macOS / Linux 路径、其它 shell） | 非常欢迎 —— 本项目在 Windows + Git Bash 上开发 |
 
-## Development setup
+## 开发环境
 
 ```bash
 git clone https://github.com/OneMoh/html-explainer.git
 cd html-explainer
 
-# Check the environment, then install anything missing
-bash setup_env.sh            # report only
-bash setup_env.sh --install  # fetch missing dependencies
+# 先自检，再装缺的东西
+bash setup_env.sh            # 只报告
+bash setup_env.sh --install  # 安装缺失依赖
 
-# Confirm the toolchain is healthy
+# 确认工具链正常
 node -v && python -V
 ```
 
-Requirements: Python ≥ 3.9, Node ≥ 18, and either Chrome or Edge (both are almost always
-already present). `ffmpeg` is used from `PATH` or falls back to the static binary bundled
-with `imageio-ffmpeg`.
+要求：Python ≥ 3.9、Node ≥ 18，以及 Chrome 或 Edge（两者几乎总是已经装好）。
+`ffmpeg` 优先从 `PATH` 取，取不到则回退到 `imageio-ffmpeg` 自带的静态二进制。
 
-### Running an end-to-end check
+### 跑一次端到端自检
 
 ```bash
 python scripts/new_project.py demo --topic "人工智能"
 cd demo
-# fill narration.json, write frames/*.html, set project.json order
+# 填 narration.json、写 frames/*.html、设置 project.json 的 order
 python ../scripts/tts_build.py      --project .
 python ../scripts/timeline_build.py --project .
 python ../scripts/subs.py           --project .
@@ -46,95 +44,79 @@ python ../scripts/lint_frames.py    --project .
 node   ../scripts/render_video.mjs  . --preview 30
 ```
 
-If all of that completes and `out/preview.mp4` plays with synchronised audio, your
-environment is good.
+如果这些全部跑完、`out/preview.mp4` 播放时音画同步，你的环境就没问题。
 
-## The project's hard rules
+## 项目的硬性规则
 
-These are not style preferences. Breaking them produces silent failures — a video that
-renders but is wrong. They are enforced by `scripts/lint_frames.py` where possible.
+这些不是风格偏好。违反它们会产生**静默失败** —— 视频能渲出来，但是错的。凡是能自动检查的，
+都由 `scripts/lint_frames.py` 强制。
 
-1. **No external fonts or CDN resources in any frame.** Web fonts are unreachable from
-   many networks and time out silently. Use system font stacks only, and reference GSAP
-   from the bundled `../assets/gsap.min.js`.
-2. **Colours come from `theme.css` CSS variables only.** No hex literals in frame code.
-   This is what makes a theme change a one-file operation.
-3. **No wall-clock logic.** `setInterval` and `requestAnimationFrame` counters cannot
-   work under deterministic seeking. Animate with GSAP or CSS `@keyframes`.
-4. **Animate with GSAP timelines, registered on `window.__tl`.** The renderer seeks this
-   timeline once per frame; without it, nothing animates.
-5. **Position animations with `B('block text')`, never hardcoded times.** The fallback
-   form `B('x') || 3.2` is forbidden — a missing block should fail loudly at build time,
-   not silently reuse a stale number.
-6. **Keep the subtitle safe zone clear.** Nothing may render in the bottom 80–170px, and
-   entrance paths must not cross it.
-7. **Use ASCII paths for all project directories and output files.** Non-ASCII paths break
-   ffmpeg on Windows. Project and output names are ASCII; rename for presentation later.
+1. **任何画面帧里都不许引外部字体或 CDN 资源。** 网络字体在很多网络下不可达，而且超时是
+   静默的。只用系统字体栈，GSAP 一律从随包的 `../assets/gsap.min.js` 引用。
+2. **颜色只能取 `theme.css` 的 CSS 变量。** 画面代码里不许出现十六进制字面量 —— 这正是
+   「换主题只改一个文件」得以成立的原因。
+3. **不许有墙钟逻辑。** `setInterval` 与 `requestAnimationFrame` 计数在确定性 seek 下不可能
+   工作。动画用 GSAP 或 CSS `@keyframes`。
+4. **动画用 GSAP 时间轴，并注册到 `window.__tl`。** 渲染器每帧 seek 这个时间轴；没有它，
+   什么都不动。
+5. **动画定位用 `B('块文本')`，绝不用写死的时间。** 兜底写法 `B('x') || 3.2` 是被禁止的 ——
+   块查不到就应该在构建时大声失败，而不是静默复用一具过期的数字。
+6. **保持字幕禁区干净。** 底部 80–170px 不许有任何内容渲染，入场路径也不许穿过它。
+7. **项目目录与输出文件一律用 ASCII 路径。** 非 ASCII 路径会让 Windows 上的 ffmpeg 出错。
+   项目名与输出名保持 ASCII，要展示用的名字以后再改。
 
-The full contract, with the reasoning behind each rule and the counter-examples that get
-a frame rejected, is in [`references/frame-contract.md`](references/frame-contract.md).
+完整契约（每条规则背后的理由，以及会被打回的反例）见
+[`references/frame-contract.md`](references/frame-contract.md)。
 
-## Adding a new lesson
+## 追加一条踩坑记录
 
-`references/lessons.md` is the most valuable file in this repository. It exists because
-this kind of pipeline fails *silently* — a bug produces a plausible-looking video rather
-than an error.
+`references/lessons.md` 是这个仓库里最值钱的文件。它之所以存在，是因为这条流水线的失败方式
+是**静默**的 —— 出问题不会报错，只会产出一条看着挺像样的视频。
 
-A good entry contains, in this order:
+一条好的记录按这个顺序写：
 
-1. **The symptom**, as you first observed it — including how it misled you.
-2. **The diagnosis**, and the evidence that proved it (a probe, a diff, a measurement).
-3. **The fix**, and what to check afterwards to confirm it.
-4. **The general rule** this implies, if it implies one.
+1. **症状**，就按你最初观察到的样子 —— 包括它是怎么把你带偏的。
+2. **定位过程**，以及证明病因的证据（探针、diff、测量值）。
+3. **修法**，以及修完该检查什么来确认。
+4. **由此得出的通用规则**（如果确实能推出的话）。
 
-Number entries sequentially and append. Do not renumber existing entries — they are
-referenced from code comments.
+编号顺次追加。**不要给已有条目重新编号** —— 代码注释里在引用这些编号。
 
-## Adding a new visual style
+## 追加一种画面风格
 
-1. Record the specification in `references/style-catalog.md` (canvas, type scale, timeline
-   structure, colour discipline) and `references/style-catalog.json`.
-2. Classify it as `rich` (single file, CSS `@keyframes` timeline — drivable by the seek
-   renderer with no changes) or `gsap` (multi-composition — must be re-expressed, not
-   copied).
-3. Add an adaptation recipe to `references/template-guide.md` if the style needs anything
-   beyond the standard three steps (swap the font stack, lift bottom elements out of the
-   subtitle zone, fill in real content).
-4. Verify it renders: `node scripts/peek_frame.mjs <project> <id> --at 25,50,85`.
+1. 在 `references/style-catalog.md` 与 `references/style-catalog.json` 里记录规范
+   （画布、字阶、时间轴结构、配色纪律）。
+2. 分类为 `rich`（单文件，CSS `@keyframes` 时间轴 —— seek 渲染器零改动可驱动）或 `gsap`
+   （多 composition —— 必须重写表达，不能照搬）。
+3. 如果这种风格需要超出标准三步（换字体栈、把底部元素抬出字幕带、填真实内容）之外的
+   处理，在 `references/template-guide.md` 里补一条改编配方。
+4. 验证它能渲出来：`node scripts/peek_frame.mjs <project> <id> --at 25,50,85`。
 
-Style identifiers are `kebab-case` and match the pattern already in use (`frame-*`,
-`vfx-*`).
+风格标识符用 `kebab-case`，并沿用已有的命名模式（`frame-*`、`vfx-*`）。
 
-## Pull request checklist
+## PR 检查清单
 
-Before opening a PR, please confirm:
+提 PR 之前请确认：
 
-- [ ] `python scripts/lint_frames.py --project <project>` reports no FAILs for any frame
-      you touched
-- [ ] You have actually rendered your change. Frame code that "looks right" frequently
-      is not — seek-based rendering has its own failure modes
-- [ ] Any new lesson is added to `references/lessons.md` with a number
-- [ ] No external fonts, CDN references, or hardcoded colours were introduced
-- [ ] If you redistributed or re-derived third-party content, `THIRD_PARTY_NOTICES.md`
-      is updated
-- [ ] `README.md` and `README.en.md` are updated together if user-facing behaviour
-      changed
+- [ ] `python scripts/lint_frames.py --project <project>` 对你动过的每一帧都没有 FAIL
+- [ ] 你真的渲染过你的改动。画面代码「看着对」经常是不对的 —— seek 渲染有自己的失败模式
+- [ ] 新增的踩坑记录已带编号写进 `references/lessons.md`
+- [ ] 没有引入外部字体、CDN 引用或硬编码颜色
+- [ ] 如果有再分发或再衍生的第三方内容，`THIRD_PARTY_NOTICES.md` 已更新
+- [ ] 涉及使用者可见行为的改动，`README.md` 与 `README.en.md` 已同步更新
 
-## Commit messages
+## 提交信息
 
-Conventional Commits are preferred (`fix:`, `feat:`, `docs:`, `chore:`). A body is
-encouraged when the change fixes a silent failure — explain what was misbehaving and how
-you verified the fix.
+建议使用 Conventional Commits（`fix:`、`feat:`、`docs:`、`chore:`）。如果这次改动修的是一个
+静默失败，请写正文说明它原来错在哪、你是怎么验证修好了的。
 
-## Scope note
+## 范围说明
 
-This project intentionally does **not** aim to be a framework. It is a pipeline with a
-small, boring surface: HTML frames in, MP4 out, with audio-video sync that holds. Features
-that add a build system, a plugin API, or a runtime dependency on a cloud service are
-generally out of scope — say hello in an issue if you think there's an important exception.
+本项目刻意**不**打算成为一个框架。它是一条流水线，接口很小、很无聊：HTML 帧进，MP4 出，
+音画同步稳得住。会增加构建系统、插件 API，或对云服务产生运行时依赖的功能，一般都在范围之外
+—— 如果你认为有重要的例外，开个 issue 聊聊。
 
-## License
+## 许可
 
-By contributing, you agree that your contributions are licensed under the MIT License
-(see [LICENSE](LICENSE)), and you confirm you have the right to submit them. If you are
-porting content from another project, add it to `THIRD_PARTY_NOTICES.md` in the same PR.
+提交贡献即表示你同意你的贡献以 MIT 许可授权（见 [LICENSE](LICENSE)），并确认你有权提交它们。
+如果你从别的项目移植了内容，请在同一个 PR 里把它写进 `THIRD_PARTY_NOTICES.md`。

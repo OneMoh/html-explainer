@@ -7,7 +7,7 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Only the latest run per branch matters; cancel superseded ones.
+# 每个分支只关心最新一次运行；被取代的自动取消。
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -19,8 +19,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Windows + Git Bash is the primary development platform, so it is
-        # tested alongside Linux rather than treated as an afterthought.
+        # Windows + Git Bash 是主要开发平台，所以和 Linux 一起测，
+        # 而不是被当成事后补的。
         os: [ubuntu-latest, windows-latest]
         python: ["3.9", "3.13"]
 
@@ -35,27 +35,27 @@ jobs:
         with:
           node-version: "22"
 
-      # --- Repo self-consistency: version drift, catalog drift, stray CDN links ---
+      # --- 仓库自洽性：版本号漂移、风格目录漂移、残留外链 ---
       - name: Repository integrity check
         run: python scripts/check_integrity.py
 
-      # --- Python scripts must at least compile on the oldest supported version ---
+      # --- Python 脚本至少在支持的最低版本上要能编译 ---
       - name: Compile Python scripts
         run: python -m compileall -q scripts
 
-      # --- Frame audit tool must be importable and its CLI must respond ---
+      # --- 画面体检工具要能被导入，且命令行要能响应 ---
       - name: Lint tool smoke test
         run: python scripts/lint_frames.py --help
 
       - name: Integrity checker smoke test
         run: python scripts/check_integrity.py --root .
 
-      # --- Shell entrypoint syntax ---
+      # --- Shell 入口语法 ---
       - name: Check setup_env.sh syntax
         shell: bash
         run: bash -n setup_env.sh
 
-      # --- Renderer / cover builder / peek tool syntax ---
+      # --- 渲染器 / 封面器 / 单帧速览工具的语法 ---
       - name: Check Node module syntax
         shell: bash
         run: |
@@ -69,11 +69,9 @@ jobs:
         shell: bash
         run: |
           set -e
-          # Frames must never reach out to a CDN or web font: offline rendering
-          # degrades silently rather than failing.
-          # Scope to HTML only — markdown docs legitimately *mention* these URLs
-          # (e.g. the guide explaining that you must delete them), and GSAP's own
-          # bundled README documents its CDN option.
+          # 画面帧绝不允许引 CDN 或网络字体：离线渲染不会报错，只会静默劣化。
+          # 只扫 HTML —— markdown 文档里*提到*这些 URL 是合理的
+          # （比如正是指南在教你要把它们删掉），而 GSAP 自带的 README 也会介绍它的 CDN 用法。
           hits=$(grep -rInE --include='*.html' \
             'https?://[^"'"'"' ]*(fonts\.googleapis|fonts\.gstatic|cdn\.)' . \
             || true)

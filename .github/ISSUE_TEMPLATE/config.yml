@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Read the frame contract first
+  - name: 先读画面契约
     url: https://github.com/OneMoh/html-explainer/blob/main/references/frame-contract.md
-    about: Most "my frame renders but looks wrong" reports are explained by the eight contract rules.
-  - name: Check the lessons ledger
+    about: 绝大多数「我的画面能渲但看着不对」都能被八条契约规则解释。
+  - name: 先查踩坑台账
     url: https://github.com/OneMoh/html-explainer/blob/main/references/lessons.md
-    about: Known silent-failure modes and their diagnoses. Worth a search before filing.
-  - name: Setup and environment issues
-    url: https://github.com/OneMoh/html-explainer/blob/main/README.md#疑难排查
-    about: Run `bash setup_env.sh` and compare against the troubleshooting table (English version: README.en.md#troubleshooting).
+    about: 已知的静默失败模式及其定位方法。提 issue 之前值得先搜一遍。
+  - name: 安装与环境问题
+    url: https://github.com/OneMoh/html-explainer/blob/main/README.md
+    about: 先跑 `bash setup_env.sh`，再对照 README 的「疑难排查」一节。

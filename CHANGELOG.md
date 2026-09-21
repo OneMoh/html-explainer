@@ -1,142 +1,118 @@
-# Changelog
+# 变更日志
 
-All notable changes to `html-explainer` are documented here.
+`html-explainer` 的所有重要变更都记录在这里。
 
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
+版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
-Versions before `1.2.2` were private, internal releases. `1.2.2` is the first public
-release on GitHub.
+`1.2.2` 之前的版本都是私有内部发布。**`1.2.2` 是 GitHub 上的首个公开版本。**
 
 ---
 
-## [1.2.2] — 2026-09-21 — first public release
+## [1.2.2] — 2026-09-21 — 首个公开版本
 
-### Added
+### 新增
 
-- **`scripts/lint_frames.py`** — static pre-render audit of every scene frame. Checks the
-  eight frame-contract rules plus known pitfalls before spending time on a full render:
-  external fonts / CDN links, hardcoded colour literals, missing `window.__tl`
-  registration, CDN GSAP, wall-clock logic (`setInterval`, `requestAnimationFrame`
-  counters), CSS `transition` entrances, `B('…') || number` fallbacks, content intruding
-  into the subtitle safe zone, and missing CJK font families.
-- **`scripts/peek_frame.mjs`** — single-frame viewer. Seeks one scene to a few time points
-  and screenshots them in seconds, so frame design can be judged without rendering the
-  whole video. `--at` takes percentages, not frame numbers.
-- **Bilingual project README** (`README.md` in Chinese, `README.en.md` in English).
-- **Open-source governance files**: `LICENSE` (MIT), `THIRD_PARTY_NOTICES.md`,
-  `CHANGELOG.md`, `CONTRIBUTING.md`, `licenses/Apache-2.0.txt`, `.gitignore`,
-  `.gitattributes`, GitHub issue/PR templates, and a CI workflow.
+- **`scripts/lint_frames.py`** —— 渲染前的画面静态体检。在花时间渲染整片之前，先检查八条
+  画面契约与已知坑：外部字体 / CDN 引用、硬编码颜色字面量、缺失 `window.__tl` 注册、
+  CDN 版 GSAP、墙钟逻辑（`setInterval`、`requestAnimationFrame` 计数）、CSS `transition`
+  入场、`B('…') || 数字` 兜底写法、侵入字幕禁区的内容、缺失中文字体族。
+- **`scripts/peek_frame.mjs`** —— 单帧速览。把一个场景 seek 到若干时点截图，耗时是**秒级**，
+  于是不用渲全片就能判断画面设计。`--at` 收的是百分比，不是帧号。
+- **双语项目 README**（`README.md` 中文为默认，`README.en.md` 英文）。
+- **开源治理文件**：`LICENSE`（MIT）、`THIRD_PARTY_NOTICES.md`、`CHANGELOG.md`、
+  `CONTRIBUTING.md`、`licenses/Apache-2.0.txt`、`.gitignore`、`.gitattributes`、
+  GitHub issue / PR 模板，以及 CI 工作流。
 
-### Fixed
+### 修复
 
-- **`speech_end_sec` disagreed between a cold run and a cached re-run** (lessons #31).
-  `_result()` measured the already-trimmed output file, so the head-trim amount was
-  subtracted twice: a cold run reported `7.541s`, a cached re-run reported `7.696s` —
-  a 0.155s discrepancy that broke the "two runs are frame-identical" guarantee and made
-  the final subtitle block disappear early. Now stored in post-trim coordinates.
+- **`speech_end_sec` 在冷跑与缓存重跑之间不一致**（lessons #31）。`_result()` 量的是已经裁过
+  静音的输出文件，于是头部裁剪量被减了两次：冷跑报 `7.541s`，缓存重跑报 `7.696s` ——
+  0.155s 的差异破坏了「两次渲染逐帧一致」的保证，并让末块字幕提前消失。现在统一存**裁后
+  坐标系**下的值。
 
-### Changed
+### 变更
 
-- Documentation: `scripts/lint_frames.py` and `scripts/peek_frame.mjs` added to the
-  command sequence and the file reference table (both previously undocumented).
-- Documentation: the lint stage is now an explicit step in the workflow, between subtitle
-  generation and rendering.
-- Documentation: removed references to private client projects so the skill can ship
-  publicly.
-- Documented licensing: the style catalog is derived from Apache-2.0 content and now
-  carries full upstream attribution.
+- 文档：`scripts/lint_frames.py` 与 `scripts/peek_frame.mjs` 补进命令序列与文件表
+  （两者此前都没有被文档记录）。
+- 文档：lint 现在是工作流里的显式阶段，位置在生成字幕之后、渲染之前。
+- 文档：删除对私有客户项目的引用，使技能可以公开发布。
+- 许可：风格目录衍生自 Apache-2.0 内容，现已带上完整的来源署名。
 
-### Notes
+### 备注
 
-- Backfilled from field work: preview-render frame deletion (`--keep-frames`), the
-  temporary-project technique for re-rendering a single scene, and the cold-open rule
-  that a video's first 0.5s must already show its subject (lessons #32–#34).
+- 从实战回填：预览渲染会清空帧目录（`--keep-frames`）、重渲单个场景的临时项目法、
+  以及「开场 0.5 秒内就必须出现主角」的冷开场规则（lessons #32–#34）。
 
 ---
 
 ## [1.2.1] — 2026-09-20
 
-Four rendering / QC correctness fixes, all found by instrumenting the renderer rather
-than by inspection. See `references/lessons.md` #27–#30.
+四个渲染 / QC 正确性修复，全部是靠给渲染器加探针找出来的，而不是靠肉眼看。
+详见 `references/lessons.md` #27–#30。
 
-### Fixed
+### 修复
 
-- **`tl.pause(t)` silently suppressed seek callbacks.** GSAP's signature is
-  `pause(atTime, suppressEvents)` and the second parameter defaults to `true`, so any
-  `onUpdate` / `onStart` / `onComplete` fired by a seek was dropped. A counter animated
-  via `onUpdate` therefore sat frozen at its initial value in the output — no error, no
-  warning, correct thumbnail size, and undetectable by static checks. The renderer and
-  cover builder now call `tl.pause(t, false)`. The docs additionally steer number
-  animations toward a pure-transform "digit strip" that depends on no callback at all.
-- **`deviceScaleFactor` passed to `chromium.launch()` was silently ignored.** Both
-  `viewport` and `deviceScaleFactor` are context-level options and only take effect on
-  `newPage()`. Covers were being written at 1× while the log claimed 2×. The build now
-  verifies output dimensions with PIL instead of trusting the log.
-- **QC sampling only covered the first quarter of the video.** `qc_check.py` sampled
-  subtitle-block start times but sliced `pts[:samples]`, taking the first N blocks rather
-  than a spread. A 39-block video sampled 12 blocks covering only 0.25–23.86s, leaving six
-  late scenes completely unchecked while reporting "all passed". Sampling now steps evenly
-  across the full range.
-- **Cover layout was being measured mid-animation.** Verification ran straight after page
-  load, so it read `fromTo` start values instead of the settled layout and reported
-  phantom offsets. Measurement now sets `__MG_RENDER__` and seeks to `tl.duration()`
-  first, matching the cover builder exactly.
+- **`tl.pause(t)` 会静默吞掉本次 seek 的回调。** GSAP 的签名是
+  `pause(atTime, suppressEvents)`，第二参默认为 `true`，于是 seek 触发的任何
+  `onUpdate` / `onStart` / `onComplete` 都被丢弃。用 `onUpdate` 写的计数器因此在成片里恒为
+  初值 —— 不报错、不告警、缩略图尺寸正确，静态检查也查不出来。渲染器与封面器现在调用
+  `tl.pause(t, false)`。文档同时把数字滚动引导向**纯 transform 的「数字卷轴」**，
+  完全不依赖任何回调。
+- **传给 `chromium.launch()` 的 `deviceScaleFactor` 被静默忽略。** `viewport` 与
+  `deviceScaleFactor` 都是 context 级选项，只在 `newPage()` 上生效。封面实际写成了 1 倍图，
+  而日志声称 2 倍。现在构建用 PIL 核验输出尺寸，不再信日志。
+- **QC 抽样只覆盖了视频前四分之一。** `qc_check.py` 取字幕块起始时间后写成 `pts[:samples]`，
+  拿的是**前 N 块**而不是均匀铺开。一条 39 块的视频抽了 12 块，只覆盖 0.25–23.86s，后 6 个
+  场景一帧没抽，却报告「全部通过」。现在按步长在全片范围均匀抽样。
+- **封面排版是在动画中途量的。** 校验紧接页面加载后就跑，读的是 `fromTo` 起始值而不是稳定
+  终态，于是报出幽灵偏移。现在测量前先置 `__MG_RENDER__` 并 seek 到 `tl.duration()`，
+  与封面渲染器完全一致。
 
 ---
 
 ## [1.2.0] — 2026-09-20
 
-### Added
+### 新增
 
-- **Dual-cover system.** Every finished video now produces two independently laid-out
-  covers instead of one: `cover_169.png` (1920×1080, 3840×2160 output) for the feed and
-  player, and `cover_34.png` (1440×1080, 2880×2160 output) for profile grids.
-  - `scripts/cover_build.mjs` — cover renderer reusing the scene renderer's deterministic
-    seek core, with three deliberate differences: no subtitle layer, a single seek to one
-    "cover moment" (`--at last` by default) rather than per-frame stepping, and 2× output
-    by default.
-  - `assets/cover-template.html` — cover template with the three required elements
-    documented in its header.
-  - `references/cover-guide.md` — re-layout comparison table, sizing rules, upload
-    strategy, and a self-check list.
-- `scripts/new_project.py` now scaffolds both cover HTML files into a new project.
+- **封面双方案。** 每条成片现在产出两张独立排版的封面而不是一张：`cover_169.png`
+  （1920×1080，输出 3840×2160）用于信息流与播放器，`cover_34.png`（1440×1080，
+  输出 2880×2160）用于主页栅格。
+  - `scripts/cover_build.mjs` —— 封面渲染器，复用场景渲染器的确定性 seek 内核，但有三处
+    刻意不同：不带字幕层、只 seek 到单个「封面时刻」（默认 `--at last`）而不是逐帧步进、
+    以及默认 2 倍输出。
+  - `assets/cover-template.html` —— 封面模板，三个必需元素写在文件头注释里。
+  - `references/cover-guide.md` —— 重排对照表、尺寸规则、上传策略与自检清单。
+- `scripts/new_project.py` 现在会把两份封面 HTML 一起生成到新项目里。
 
-### Notes
+### 备注
 
-- The two covers are **sibling layouts sharing one visual DNA, never a crop pair**.
-  Cropping 3:4 out of 16:9 discards 57.8% of the frame width (1920 → 810px), which
-  guarantees a headline hook gets cut. The re-layout changes the composition itself:
-  the paradox visual moves from side-by-side on the right to a vertical stack on top,
-  and the hook goes from two lines to three.
+- 两张封面是**共享同一套视觉基因的姊妹版式，绝不是一对裁切**。从 16:9 裁 3:4 会丢掉
+  57.8% 的画面宽度（1920 → 810px），必然把大字钩子切掉。重排改的是构型本身：悖论视觉
+  从「右侧左右并置」变成「上方竖排堆叠」，钩子从两行变成三行。
 
 ---
 
-## [1.1.0] — 2026-09-20 — first packaged release
+## [1.1.0] — 2026-09-20 — 首个打包发布
 
-### Added
+### 新增
 
-- Core pipeline: `new_project.py` → `tts_build.py` → `timeline_build.py` → `subs.py` →
-  `render_video.mjs` → `qc_check.py`.
-- **Deterministic seek renderer** (`render_video.mjs`). Instead of screen-recording a
-  live page, every frame is produced by seeking the GSAP timeline (`tl.pause(t, false)`)
-  and synchronising CSS animations (`document.getAnimations().currentTime = t*1000`)
-  before screenshotting. This eliminates the entire class of live-recording failures:
-  no playback-start race, no font-load timeout, no unstable lead-in.
-- **`B('block text')` beat sync.** Frame animations are positioned by matching subtitle
-  block text rather than hardcoded frame numbers, so editing narration re-times the whole
-  video without touching a single frame file.
-- `scripts/subs.py` — three subtitle outputs (runtime JSON, SRT/VTT sidecars, and the
-  in-frame layer injected by the renderer) plus generated `beats.js` per scene.
-- `scripts/make_theme.py` — four presets plus topic-word colour derivation, writing a
-  single `theme.css` source of truth for all colours.
-- `scripts/qc_check.py` — stream, duration, loudness, and sampled-frame auditing with a
-  contact sheet.
-- `scripts/import_styles.py` — one-time porting tool that transcribes template design
-  specifications into `references/style-catalog.md` / `.json`.
-- 23-style visual catalog across 8 categories, classified by adaptation cost.
-- `setup_env.sh` for first-time environment checks and `--install` for fetching missing
-  dependencies; `package_skill.py` for portable zips.
+- 核心流水线：`new_project.py` → `tts_build.py` → `timeline_build.py` → `subs.py` →
+  `render_video.mjs` → `qc_check.py`。
+- **确定性 seek 渲染器**（`render_video.mjs`）。不录活页面的屏，而是每一帧都靠 seek
+  GSAP 时间轴（`tl.pause(t, false)`）并同步 CSS 动画
+  （`document.getAnimations().currentTime = t*1000`）后再截图。这消掉了实时录制的一整类
+  失败：没有起播竞态、没有字体加载超时、没有不稳定的引导期。
+- **`B('块文本')` 节拍同步。** 画面动画按**匹配字幕块文本**定位，而不是写死帧号，于是改解说词
+  会重排全片时序，而一个画面文件都不用动。
+- `scripts/subs.py` —— 字幕三出口（运行时 JSON、SRT/VTT 外挂、渲染器注入的画面内层），
+  外加每场景生成一份 `beats.js`。
+- `scripts/make_theme.py` —— 四个预设 + 按主题词推色，写出唯一颜色来源 `theme.css`。
+- `scripts/qc_check.py` —— 流 / 时长 / 响度 / 抽帧体检，附抽帧速览图。
+- `scripts/import_styles.py` —— 移植期一次性工具，把模板设计规范转写成
+  `references/style-catalog.md` / `.json`。
+- 23 种画面风格目录，8 个类别，按改编成本分类。
+- `setup_env.sh` 做首次环境自检，`--install` 装缺失依赖；`package_skill.py` 打可移植 zip。
 
 [1.2.2]: https://github.com/OneMoh/html-explainer/releases/tag/v1.2.2
 [1.2.1]: https://github.com/OneMoh/html-explainer/releases/tag/v1.2.1

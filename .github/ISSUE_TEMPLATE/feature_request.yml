@@ -1,51 +1,49 @@
-name: Feature request
-description: Propose a new capability, style, or workflow improvement.
+name: 功能建议
+description: 提议一个新能力、新风格，或流程改进。
 title: "[Feature] "
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        This project deliberately keeps a small surface: HTML frames in, MP4 out, with
-        audio-video sync that actually holds. Proposals that add a build system, a plugin
-        API, or a cloud dependency are usually out of scope — but say so if you think
-        there's an important exception.
+        本项目刻意保持很小的接口面：HTML 帧进，MP4 出，音画同步稳得住。会增加构建系统、
+        插件 API 或云依赖的提议，一般都在范围之外 —— 但如果你认为有重要的例外，请说明。
 
   - type: textarea
     id: problem
     attributes:
-      label: What problem does this solve?
-      description: Describe the situation you're in, not the API you want.
+      label: 它解决什么问题？
+      description: 描述你处的场景，而不是你想要的 API。
     validations:
       required: true
 
   - type: textarea
     id: proposal
     attributes:
-      label: Proposed approach
+      label: 你建议的做法
     validations:
       required: true
 
   - type: dropdown
     id: area
     attributes:
-      label: Area
+      label: 涉及范围
       options:
-        - Visual styles / templates
-        - Narration / TTS
-        - Subtitles / beat sync
-        - Rendering
-        - QC / auditing
-        - Covers
-        - Docs
-        - Other
+        - 画面风格 / 模板
+        - 解说 / TTS
+        - 字幕 / 节拍同步
+        - 渲染
+        - QC / 体检
+        - 封面
+        - 文档
+        - 其它
     validations:
       required: true
 
   - type: textarea
     id: alternatives
     attributes:
-      label: Alternatives considered
-      description: Including "just do it manually" — it's a valid answer.
+      label: 考虑过的替代方案
+      description: 包括「干脆手工做」—— 这也是个有效答案。
     validations:
       required: false

@@ -29,6 +29,8 @@ info() { echo "  → $1"; }
 echo "== html-explainer 环境自检 =="
 
 # ---------- Python ----------
+# 候选顺序：WorkBuddy 托管 venv（本机既有依赖，优先复用）→ 系统 python3 / python。
+# 前两个是 WorkBuddy 专属路径，其它平台探不到就自动跳过，不影响使用。
 PY=""
 for c in "$HOME/.workbuddy/binaries/python/envs/default/Scripts/python.exe" \
          "$HOME/.workbuddy/binaries/python/envs/default/bin/python" \
@@ -63,6 +65,7 @@ if command -v node >/dev/null 2>&1; then
   NV="$(node_major)"
   if [ "${NV:-0}" -ge 18 ]; then ok "Node: $(node -v)"; else miss "Node ≥18 需要，当前 $(node -v)"; fi
 else
+  # 兜底：WorkBuddy 托管的 Node（非标准安装，路径带版本号）。仅本机可用，其它平台跳过。
   for d in "$HOME/.workbuddy/binaries/node/versions"/*/; do
     if [ -x "$d/node.exe" ] || [ -x "$d/node" ]; then
       export PATH="$d:$PATH"; ok "Node(托管): $(node -v)"; break

@@ -1,75 +1,74 @@
-name: Bug report
-description: Something rendered wrong, failed silently, or crashed.
+name: Bug 报告
+description: 画面渲错了、静默失败，或者直接崩了。
 title: "[Bug] "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the report. This pipeline fails **silently** by design — a broken
-        frame usually still produces a plausible-looking video. The more of the detail
-        below you can fill in, the faster this gets diagnosed.
+        感谢反馈。这条流水线是**静默**失败的 —— 一个坏掉的帧通常还是能产出一条看着挺像样的
+        视频。下面这些信息你填得越全，定位得越快。
 
   - type: dropdown
     id: stage
     attributes:
-      label: Which stage failed?
+      label: 哪个阶段出错了？
       options:
-        - "0 · new_project (scaffold)"
-        - "1 · tts_build (voiceover)"
-        - "2 · timeline_build (global timeline)"
-        - "3 · subs (subtitles / beats)"
-        - "4 · lint_frames (static audit)"
-        - "5 · render_video (rendering)"
-        - "6 · qc_check (audit)"
-        - "7 · cover_build (covers)"
-        - "setup_env / environment"
-        - "Not sure"
+        - "0 · new_project（建项目）"
+        - "1 · tts_build（配音）"
+        - "2 · timeline_build（全局时间轴）"
+        - "3 · subs（字幕 / 节拍）"
+        - "4 · lint_frames（静态体检）"
+        - "5 · render_video（渲染）"
+        - "6 · qc_check（体检）"
+        - "7 · cover_build（封面）"
+        - "setup_env / 环境问题"
+        - "不确定"
     validations:
       required: true
 
   - type: textarea
     id: what-happened
     attributes:
-      label: What happened?
-      description: Include the exact command you ran and the full output.
+      label: 发生了什么？
+      description: 请附上你执行的完整命令与完整输出。
       placeholder: |
-        Command: node scripts/render_video.mjs . --preview 30
-        Expected: 30s preview with animated cards
-        Actual: preview renders, but the number counter never moves
+        命令：node scripts/render_video.mjs . --preview 30
+        期望：30 秒预览，卡片有动画
+        实际：预览渲出来了，但数字计数器一直不动
     validations:
       required: true
 
   - type: textarea
     id: symptom-class
     attributes:
-      label: Did it fail loudly or silently?
+      label: 它是报错了，还是静默出错？
       description: >
-        Silent failures are the interesting ones here. If playback works but the output
-        is wrong (frozen element, desynced subtitle, missing text), say so explicitly.
+        静默失败才是这里最有价值的一类。如果视频能播但输出是错的
+        （元素卡住、字幕不同步、文字缺失），请明确写出来。
     validations:
       required: false
 
   - type: textarea
     id: environment
     attributes:
-      label: Environment
-      description: "Run these and paste the result."
+      label: 环境
+      description: "跑一下这些，把结果贴上来。"
       value: |
-        - OS:
-        - `node -v`:
-        - `python -V`:
-        - Shell (Git Bash / PowerShell / zsh):
-        - Browser used for rendering (Chrome / Edge / playwright chromium):
-        - ffmpeg source (PATH / imageio-ffmpeg):
+        - 操作系统：
+        - `node -v`：
+        - `python -V`：
+        - Shell（Git Bash / PowerShell / zsh）：
+        - 渲染用浏览器（Chrome / Edge / playwright chromium）：
+        - ffmpeg 来源（PATH / imageio-ffmpeg）：
     validations:
       required: true
 
   - type: input
     id: version
     attributes:
-      label: Version
-      description: The `version:` field in SKILL.md, or the release tag.
+      label: 版本
+      description: SKILL.md 里的 `version:` 字段，或发布 tag。
       placeholder: "1.2.2"
     validations:
       required: true
@@ -77,7 +76,7 @@ body:
   - type: textarea
     id: qc-output
     attributes:
-      label: QC output (if you got as far as rendering)
-      description: Paste `out/qc_report.md`, or attach the contact sheet.
+      label: QC 输出（如果你已经跑到渲染那一步）
+      description: 贴 `out/qc_report.md`，或附上抽帧速览图。
     validations:
       required: false

@@ -218,13 +218,49 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 | `assets/frame-template.html` | 场景模板（契约注释在文件头，B() 用法示例） |
 | `assets/cover-template.html` | **封面模板**（封面三要素注释在文件头，可改尺寸复用为两份） |
 | `assets/gsap.min.js` | GSAP 3.13 本地内置（离线渲染；License 见同目录 `gsap-README.md`） |
-| `README.md` / `README.en.md` | 对外项目说明（中文为主，英文副） |
+| `README.md` / `README.en.md` | 对外项目说明（**README.md 中文为默认**，`README.en.md` 英文；含跨 Agent 安装指引） |
+| `CONTRIBUTING.md` | 贡献指南：硬性规则、端到端自检、PR 清单 |
 | `CHANGELOG.md` | 版本变更史 |
 | `THIRD_PARTY_NOTICES.md` | 第三方组件与衍生内容的授权声明（**发布前必读**） |
+
+## 跨 Agent 安装
+
+本技能遵循 [Agent Skills](https://code.claude.com/docs/en/skills) 约定（`SKILL.md` +
+`scripts/` + `references/` + `assets/`），**不绑定任何单一智能体平台**。仓库根目录**就是**
+技能目录，所以 clone 到下表任一路径即可直接生效，不需要再拷子目录。
+
+| 智能体 | 个人级（全局） | 项目级（仓库内） |
+|---|---|---|
+| WorkBuddy | `~/.workbuddy/skills/` | `<工作区>/.workbuddy/skills/` |
+| Claude Code | `~/.claude/skills/` | `.claude/skills/` |
+| OpenAI Codex | `~/.codex/skills/` | `.codex/skills/` 或 `.agents/skills/` |
+| Gemini CLI | `~/.gemini/skills/` | `.gemini/skills/` 或 `.agents/skills/` |
+| Cursor | `~/.cursor/skills/` | `.cursor/skills/` |
+| GitHub Copilot / VS Code | `~/.copilot/skills/` | `.github/skills/` |
+| OpenCode | `~/.config/opencode/skills/` | `.opencode/skills/` |
+| Windsurf | `~/.windsurf/skills/` | `.windsurf/skills/` |
+| 通用约定 | `~/.agents/skills/` | `.agents/skills/` |
+
+手动安装（把 `~/.claude` 换成你所用智能体的目录）：
+
+```bash
+git clone https://github.com/OneMoh/html-explainer.git ~/.claude/skills/html-explainer
+bash ~/.claude/skills/html-explainer/setup_env.sh --install
+```
+
+也可以直接把这句话交给智能体，让它自己装：
+
+> 给当前本地环境安装该 Skill：https://github.com/OneMoh/html-explainer.git
+> 安装到你的技能目录，并检测安装必要的运行环境（Python 3.9+ / Node 18+ / Chrome 或 Edge / ffmpeg）
+
+装完**新开一个会话**，让智能体重新扫描技能目录。同理，调用本技能时应把
+`<SKILL_ROOT>` 替换成实际安装路径 —— 派子 agent 时要展开成**绝对路径**写进 prompt。
 
 ## 打包移植
 
 技能目录自包含，不引用本机任何绝对路径（脚本按自身位置定位 `SKILL_ROOT`）。
+仅有两处**兜底探测**会去探 WorkBuddy 托管的运行时目录（`setup_env.sh` 的 Python/Node
+候选、`peek_frame.mjs` 的技能根候选）—— 探不到就自动跳过，不影响其它平台。
 
 **零依赖声明（重要）**：本技能**不需要** html-video 或 anything2explainer 存在。
 两个来源项目的名字只出现在：① 代码注释的出处署名 ② `scripts/import_styles.py`
@@ -237,7 +273,7 @@ qc → cover）**完全不碰这两个项目**。风格库是抄成纯文本的�
 python package_skill.py                # → dist/html-explainer-v<版本>.zip
 python package_skill.py --with-deps    # 含 playwright-core，~14MB（目标机全程离线）
 
-# ② 新机器：解压到任意目录（推荐 ~/.workbuddy/skills/）
+# ② 新机器：解压到任意目录（放进上表任一「个人级」技能目录即可被该智能体识别）
 bash setup_env.sh --install            # 自检 + 装缺项（先装后判定，装成功即算就绪）
 
 # ③ 跑一遍端到端（可选，验证链路）
@@ -249,8 +285,8 @@ python scripts/qc_check.py --project . && node scripts/cover_build.mjs .
 ```
 
 **依赖探测顺序**（都尽量用系统已有的，避免下载）：
-- Python：先找托管 venv，再 `python3` / `python`
-- Node：`node -v` ≥18；没有则扫 `~/.workbuddy/binaries/node/versions/*`
+- Python：先找 WorkBuddy 托管 venv，再 `python3` / `python`
+- Node：`node -v` ≥18；没有则扫 `~/.workbuddy/binaries/node/versions/*`（WorkBuddy 托管路径）
 - 浏览器：Chrome → Edge → playwright chromium → `BROWSER_PATH` 环境变量
 - ffmpeg：PATH → `imageio_ffmpeg.get_ffmpeg_exe()`（pip 装依赖时自带静态二进制）
 - GSAP：包内 `assets/gsap.min.js`（离线，不外链）
@@ -263,6 +299,9 @@ python scripts/qc_check.py --project . && node scripts/cover_build.mjs .
 - 本技能**原创代码与文档**：MIT © 2026 **Moh**（见 `LICENSE`）。
 - **画面风格目录**（`references/style-catalog.md` / `.json`）由 [nexu-io/html-video](https://github.com/nexu-io/html-video)
   （Apache-2.0）的模板设计规范转写而来，已保留署名；转写文本按 Apache-2.0 分发。
+- **方法论思路来源**：[Vincentwei1021/anything2explainer](https://github.com/Vincentwei1021/anything2explainer)
+  （词边界字幕 / 两级时钟 / 语速标定 / QC 判据）。两者均为**他人独立项目，与本技能不是同一作者**。
+  确定性 seek 渲染器、`B()` 节拍锚定、封面双方案为本项目原创。
 - **打包内置**：GSAP 3.13（GreenSock 标准「no charge」许可，见 `assets/gsap-README.md`）、
   playwright-core（Apache-2.0）。
 - 完整清单与逐条授权见 **`THIRD_PARTY_NOTICES.md`**。发布/再分发前请连同该文件一起带上。

@@ -24,7 +24,16 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // 本脚本放在**项目**的 script/ 下（不是技能目录里），所以不能靠相对路径找技能根。
-// 解析顺序：env → 向上找含 node/playwright-core 的目录 → ~/.workbuddy/skills/html-explainer
+// 解析顺序：env → 向上逐级找含 node/playwright-core 的目录 → 各智能体技能目录下的同名落点。
+// 与平台无关：任何一处命中即可，命中不了就报错退出（不会静默用错目录）。
+const SKILL_SUBDIRS = [
+  ['.workbuddy', 'skills'],   // WorkBuddy
+  ['.claude', 'skills'],      // Claude Code
+  ['.codex', 'skills'],       // OpenAI Codex
+  ['.gemini', 'skills'],      // Gemini CLI
+  ['.cursor', 'skills'],      // Cursor
+  ['.agents', 'skills'],      // 通用约定
+];
 function resolveSkillRoot() {
   const cands = [];
   if (process.env.HTML_EXPLAINER_ROOT) cands.push(process.env.HTML_EXPLAINER_ROOT);
@@ -35,8 +44,12 @@ function resolveSkillRoot() {
     if (p === d) break;
     d = p;
   }
-  if (process.env.USERPROFILE) cands.push(path.join(process.env.USERPROFILE, '.workbuddy', 'skills', 'html-explainer'));
-  if (process.env.HOME) cands.push(path.join(process.env.HOME, '.workbuddy', 'skills', 'html-explainer'));
+  const homes = [process.env.USERPROFILE, process.env.HOME].filter(Boolean);
+  for (const home of homes) {
+    for (const seg of SKILL_SUBDIRS) {
+      cands.push(path.join(home, ...seg, 'html-explainer'));
+    }
+  }
   for (const c of cands) {
     try {
       if (fs.existsSync(path.join(c, 'node', 'node_modules', 'playwright-core', 'package.json'))) return c;
