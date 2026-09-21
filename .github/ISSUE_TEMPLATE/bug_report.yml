@@ -1,0 +1,83 @@
+name: Bug report
+description: Something rendered wrong, failed silently, or crashed.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. This pipeline fails **silently** by design — a broken
+        frame usually still produces a plausible-looking video. The more of the detail
+        below you can fill in, the faster this gets diagnosed.
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Which stage failed?
+      options:
+        - "0 · new_project (scaffold)"
+        - "1 · tts_build (voiceover)"
+        - "2 · timeline_build (global timeline)"
+        - "3 · subs (subtitles / beats)"
+        - "4 · lint_frames (static audit)"
+        - "5 · render_video (rendering)"
+        - "6 · qc_check (audit)"
+        - "7 · cover_build (covers)"
+        - "setup_env / environment"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Include the exact command you ran and the full output.
+      placeholder: |
+        Command: node scripts/render_video.mjs . --preview 30
+        Expected: 30s preview with animated cards
+        Actual: preview renders, but the number counter never moves
+    validations:
+      required: true
+
+  - type: textarea
+    id: symptom-class
+    attributes:
+      label: Did it fail loudly or silently?
+      description: >
+        Silent failures are the interesting ones here. If playback works but the output
+        is wrong (frozen element, desynced subtitle, missing text), say so explicitly.
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: "Run these and paste the result."
+      value: |
+        - OS:
+        - `node -v`:
+        - `python -V`:
+        - Shell (Git Bash / PowerShell / zsh):
+        - Browser used for rendering (Chrome / Edge / playwright chromium):
+        - ffmpeg source (PATH / imageio-ffmpeg):
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The `version:` field in SKILL.md, or the release tag.
+      placeholder: "1.2.2"
+    validations:
+      required: true
+
+  - type: textarea
+    id: qc-output
+    attributes:
+      label: QC output (if you got as far as rendering)
+      description: Paste `out/qc_report.md`, or attach the contact sheet.
+    validations:
+      required: false

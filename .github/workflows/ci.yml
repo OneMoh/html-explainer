@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Only the latest run per branch matters; cancel superseded ones.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: ${{ matrix.os }} / py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Windows + Git Bash is the primary development platform, so it is
+        # tested alongside Linux rather than treated as an afterthought.
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.9", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # --- Repo self-consistency: version drift, catalog drift, stray CDN links ---
+      - name: Repository integrity check
+        run: python scripts/check_integrity.py
+
+      # --- Python scripts must at least compile on the oldest supported version ---
+      - name: Compile Python scripts
+        run: python -m compileall -q scripts
+
+      # --- Frame audit tool must be importable and its CLI must respond ---
+      - name: Lint tool smoke test
+        run: python scripts/lint_frames.py --help
+
+      - name: Integrity checker smoke test
+        run: python scripts/check_integrity.py --root .
+
+      # --- Shell entrypoint syntax ---
+      - name: Check setup_env.sh syntax
+        shell: bash
+        run: bash -n setup_env.sh
+
+      # --- Renderer / cover builder / peek tool syntax ---
+      - name: Check Node module syntax
+        shell: bash
+        run: |
+          set -e
+          for f in scripts/*.mjs; do
+            echo "checking $f"
+            node --check "$f"
+          done
+
+      - name: Check templates are self-contained
+        shell: bash
+        run: |
+          set -e
+          # Frames must never reach out to a CDN or web font: offline rendering
+          # degrades silently rather than failing.
+          # Scope to HTML only — markdown docs legitimately *mention* these URLs
+          # (e.g. the guide explaining that you must delete them), and GSAP's own
+          # bundled README documents its CDN option.
+          hits=$(grep -rInE --include='*.html' \
+            'https?://[^"'"'"' ]*(fonts\.googleapis|fonts\.gstatic|cdn\.)' . \
+            || true)
+          if [ -n "$hits" ]; then
+            echo "$hits"
+            echo "::error::external font or CDN reference found in an HTML template"
+            exit 1
+          fi
+          echo "no external font or CDN references in HTML templates"

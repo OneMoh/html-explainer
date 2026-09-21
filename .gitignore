@@ -1,0 +1,45 @@
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# ---------- Node ----------
+# playwright-core is a dependency, not vendored source.
+# Install it with: bash setup_env.sh --install
+node_modules/
+
+# ---------- Distribution bundles ----------
+dist/
+
+# ---------- Per-project runtime artifacts ----------
+# html-explainer generates these inside a *video project* directory.
+# Ignored here so a demo project created inside the repo never gets committed.
+out/
+audio/
+render/
+research/
+script/
+qc_frames/
+qc_report.md
+qc_sheet.jpg
+*.beats.js
+*.mp4
+*.mp3
+*.wav
+*.srt
+*.vtt
+*.log
+
+# ---------- OS / editor ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+
+# ---------- Local-only scratch ----------
+.skilldev/

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>封面模板 · 复制为 frames/cover_169.html 与 frames/cover_34.html</title>
+<!--
+  ============================================================
+  封面帧契约（vs 场景帧，只有四处差别）
+  ============================================================
+  1) 尺寸不同：
+       frames/cover_169.html  → 1920×1080（抖音主封面）
+       frames/cover_34.html   → 1440×1080（兼容主页 3:4 栅格，防切字）
+     本模板默认写 1920×1080；做 3:4 版时把 html/body 的宽高与 .stage 布局改掉。
+  2) **两份是独立排版，不是裁切关系**。16:9 居中裁成 3:4 会丢掉 57.8% 的
+     画面宽度，大字钩子必被切。所以：同一套视觉基因（配色/幕底/主视觉/钩子），
+     两套版式各自摆位。
+  3) 不注入字幕层与进度条（封面不要字幕）——所以底部无禁区，
+     但仍要留 ≥96px 安全边距（平台会在四边再裁一点）。
+  4) 封面允许纯静态（无 GSAP）。有 GSAP 时间轴就 seek 到末尾取"完整态"，
+     没有就原样截。入场动画的存在意义是让你能在 --at 时点挑中间态。
+  ============================================================
+  【封面三要素】（质检就看这三条，缺一即返工）
+  ------------------------------------------------------------
+  A. 大字钩子 —— 一句能让人停下的反差句。字号 ≥96px（3:4 版可到 120–150px），
+     必须是画面上最大最亮的东西。关键词用 <em> + accent 色 + 柔光。
+  B. 核心悖论视觉 —— 画面主体本身要在"讲一个矛盾"：
+     两个对立的数字 / 一升一降的曲线 / 一半亮一半暗的对照 / 撞在一起的两块。
+     不要放中性的装饰图形。
+  C. 信息余量 —— 平台会在四边再裁，钩子距边 ≥96px；不要有贴边文字。
+  ============================================================
+-->
+<link rel="stylesheet" href="../theme.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 1920px; height: 1080px; overflow: hidden;
+    background: var(--bg-0);
+    font-family: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', 'Source Han Sans SC', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: var(--text);
+  }
+
+  /* 幕底（与场景帧同一基因，封面可以更浓） */
+  .bg { position: absolute; inset: 0; background: var(--bg-radial); }
+  .grid {
+    position: absolute; inset: 0; opacity: .34;
+    background-image:
+      linear-gradient(var(--line-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+    background-size: 96px 96px;
+  }
+  /* 封面专用的强调光晕：两团对立色，视觉上就在"对抗" */
+  .glow-a {
+    position: absolute; width: 1100px; height: 1100px; left: -220px; top: -260px;
+    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 62%); opacity: .30;
+  }
+  .glow-b {
+    position: absolute; width: 900px; height: 900px; right: -180px; bottom: -240px;
+    background: radial-gradient(circle, var(--signal) 0%, transparent 64%); opacity: .18;
+  }
+
+  /* ---------- 核心悖论视觉（示例：升降对照） ---------- */
+  .paradox { position: absolute; right: 130px; top: 250px; width: 660px; }
+  .prow { display: flex; align-items: baseline; justify-content: flex-end; gap: 22px; margin-bottom: 8px; }
+  .prow .num { font-size: 150px; font-weight: 900; line-height: 1; letter-spacing: -.03em; }
+  .prow .unit { font-size: 40px; font-weight: 800; color: var(--text-dim); }
+  .prow.up .num { color: var(--accent); text-shadow: 0 0 70px var(--accent-glow); }
+  .prow.down .num { color: var(--signal); text-shadow: 0 0 50px rgba(214,137,81,.45); }
+  .prow .cap { font-size: 26px; font-weight: 700; color: var(--text-dim); align-self: center; }
+  /* 中间那道"分裂线"——悖论的视觉本体 */
+  .split {
+    position: absolute; left: 0; right: 0; top: 540px; height: 3px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--signal), transparent);
+    opacity: .55;
+  }
+
+  /* ---------- A. 大字钩子（画面最亮最大的东西） ---------- */
+  .hook { position: absolute; left: 130px; right: 130px; top: 600px; }
+  .hook .kicker {
+    display: inline-flex; align-items: center; gap: 16px;
+    font-size: 26px; font-weight: 800; letter-spacing: .30em;
+    color: var(--accent); margin-bottom: 26px;
+  }
+  .hook .kicker .bar { width: 56px; height: 4px; background: var(--accent); }
+  .hook .big {
+    font-size: 118px; font-weight: 900; line-height: 1.06; letter-spacing: -.02em;
+    text-shadow: 0 0 80px rgba(0,0,0,.6);
+  }
+  .hook .big em {
+    font-style: normal; color: var(--accent);
+    text-shadow: 0 0 60px var(--accent-glow), 0 0 120px var(--accent-glow);
+  }
+
+  /* 角标（配角，不发光） */
+  .brand {
+    position: absolute; left: 130px; top: 96px; display: flex; align-items: center; gap: 14px;
+    font-size: 24px; font-weight: 700; letter-spacing: .18em; color: var(--text-faint);
+  }
+  .brand .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); }
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="grid"></div>
+<div class="glow-a"></div>
+<div class="glow-b"></div>
+
+<div class="brand"><span class="dot"></span><span data-slot="brand">栏目名 · 期号</span></div>
+
+<!-- ============ B. 核心悖论视觉（换成本期真正的矛盾） ============ -->
+<div class="paradox" data-slot="paradox">
+  <div class="prow up">
+    <span class="cap">一边</span>
+    <span class="num">+38%</span>
+    <span class="unit">↑</span>
+  </div>
+  <div class="prow down">
+    <span class="cap">另一边</span>
+    <span class="num">-12%</span>
+    <span class="unit">↓</span>
+  </div>
+</div>
+<div class="split"></div>
+
+<!-- ============ A. 大字钩子（≥96px，一句话点破矛盾） ============ -->
+<div class="hook" data-slot="hook">
+  <div class="kicker"><span class="bar"></span><span data-slot="kicker">开场 · 20XX</span></div>
+  <div class="big" data-slot="big">
+    同一件事<br>为什么<em>两拨人</em>的感受完全相反
+  </div>
+</div>
+
+<!-- GSAP 本地内置；封面可纯静态，需要入场动画时才用 -->
+<script src="../assets/gsap.min.js"></script>
+<script>
+(function () {
+  if (!window.gsap) return;
+  var tl = gsap.timeline({ paused: true });
+  window.__tl = tl;
+
+  // 封面只要"完整态"——所以时间轴总长很短，1.2s 内全部到位，
+  // cover_build.mjs 默认 seek 到末尾（--at last）取这一帧。
+  tl.fromTo('.brand',   { opacity: 0, y: -18 }, { opacity: 1, y: 0, duration: .5, ease: 'power3.out' }, 0)
+    .fromTo('.paradox', { opacity: 0, x: 46 },  { opacity: 1, x: 0, duration: .7, ease: 'power3.out' }, .15)
+    .fromTo('.split',   { opacity: 0, scaleX: .2, transformOrigin: 'left center' },
+                        { opacity: .55, scaleX: 1, duration: .7, ease: 'power3.inOut' }, .35)
+    .fromTo('.hook .kicker', { opacity: 0, x: -22 }, { opacity: 1, x: 0, duration: .5, ease: 'power3.out' }, .5)
+    .fromTo('.hook .big',    { opacity: 0, y: 30 },  { opacity: 1, y: 0, duration: .6, ease: 'power3.out' }, .62)
+    .fromTo('.hook .big em', { opacity: 0, scale: .78, transformOrigin: 'center' },
+                             { opacity: 1, scale: 1, duration: .45, ease: 'back.out(1.8)' }, .95);
+
+  if (!window.__MG_RENDER__) {
+    requestAnimationFrame(function () { requestAnimationFrame(function () { tl.play(0); }); });
+  }
+})();
+</script>
+</body>
+</html>

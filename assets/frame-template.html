@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>场景模板 · <id>（复制为 frames/<id>.html 后改内容）</title>
+<!--
+  ============================================================
+  html-explainer 场景契约（八条，缺一出片就坏 / 质量就掉）
+  ============================================================
+  1) 画布 1920×1080，系统字体栈（绝不引 Google Fonts / CDN 字体 ——
+     渲染器有 5s 字体硬顶，外部字体会让整帧退化）
+  2) 全部颜色从 ../theme.css 的 CSS 变量取（--accent / --signal / --warn /
+     --ok / 灰系），画面代码禁止写死色值 —— 换主题只重写那一个文件
+  3) 颜色即语义：accent=重点/我们的 · signal=指标/另一方 · warn=警示 ·
+     ok=正确 · 灰=未激活
+  4) 动画一律走 GSAP 时间轴：
+       var tl = gsap.timeline({ paused: true });
+       window.__tl = tl;          ← 渲染器只认这个（或 __timelines）
+     渲染器逐帧 tl.pause(t) 确定性 seek —— 所以**不要** CSS transition 做入场
+     （@keyframes 循环装饰可用，渲染器会同步 seek 它）
+  5) 节拍对齐解说吐字：tl.fromTo(..., B('焦虑缓解')) —— B() 来自
+     <id>.beats.js（subs.py 自动生成/刷新），改词后帧代码零改动
+  6) 底部 80–170px 是字幕带（渲染器注入 44px 硬字幕）——内容一律收在
+     bottom ≥ 170px，入场轨迹也不许穿过
+  7) 每帧一个视觉焦点：主角 ≥170px 高或 ≥96px 大字，带 accent 柔光/描边；
+     配角不发光；文字 ≥22px；背景只有幕底+网格，不撒碎屑
+  8) 帧尾留 0.3–0.9s 的静止呼吸（配音裁尾后有一小段自然静默），
+     动画主体节拍压在 speech_end 之前（B()/Be() 天然保证）
+  ============================================================
+-->
+<link rel="stylesheet" href="../theme.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 1920px; height: 1080px; overflow: hidden;
+    background: var(--bg-0);
+    font-family: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', 'Source Han Sans SC', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: var(--text);
+  }
+
+  /* 幕底：主题径向光 + 网格（可整帧换成星点/点阵，见 frame-contract.md） */
+  .bg { position: absolute; inset: 0; background: var(--bg-radial); }
+  .grid {
+    position: absolute; inset: 0; opacity: .40;
+    background-image:
+      linear-gradient(var(--line-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+    background-size: 96px 96px;
+  }
+
+  /* 章节角标（配角：不发光） */
+  .section-no {
+    position: absolute; left: 120px; top: 88px;
+    display: flex; align-items: center; gap: 18px;
+    font-size: 22px; letter-spacing: .32em; color: var(--accent); font-weight: 700;
+  }
+  .section-no .bar { width: 56px; height: 3px; background: var(--accent); }
+
+  /* ---- 主角区：对比双卡（示例版式，可换） ---- */
+  .stage { position: absolute; left: 0; right: 0; top: 216px; height: 400px; }
+  .card {
+    position: absolute; width: 600px; height: 340px;
+    border-radius: 24px; padding: 46px 50px;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .card.neutral {
+    left: 180px; top: 0;
+    background: var(--card-bg); border: 2px solid var(--line);
+  }
+  .card.focus {
+    right: 180px; top: 0;
+    background: var(--accent-soft); border: 2px solid var(--accent-border);
+    box-shadow: 0 0 90px var(--accent-glow) inset;
+  }
+  .card .label { font-size: 24px; font-weight: 800; letter-spacing: .18em; margin-bottom: 22px; }
+  .card.neutral .label { color: var(--text-dim); }
+  .card.focus .label { color: var(--accent); }
+  .card .thing { font-size: 74px; font-weight: 900; line-height: 1.12; }
+  .card.focus .thing { text-shadow: 0 0 50px var(--accent-glow); }
+  .card .note { margin-top: 20px; font-size: 26px; line-height: 1.55; color: var(--text-dim); }
+
+  /* ---- 结论带（次主角） ---- */
+  .verdict { position: absolute; left: 120px; right: 120px; top: 660px; text-align: center; }
+  .verdict .line { font-size: 60px; font-weight: 900; letter-spacing: -.01em; line-height: 1.3; }
+  .verdict .line em { font-style: normal; color: var(--accent); text-shadow: 0 0 50px var(--accent-glow); }
+
+  /* ---- 证据条（配角；注意 bottom:176px —— 字幕带禁区之上） ---- */
+  .evidence {
+    position: absolute; left: 250px; right: 250px; bottom: 176px;
+    background: var(--card-bg); border: 1px solid var(--line);
+    border-left: 5px solid var(--accent); border-radius: 14px;
+    padding: 26px 40px; display: flex; align-items: center; gap: 30px;
+  }
+  .evidence .tag {
+    flex: none; font-size: 23px; font-weight: 800; letter-spacing: .14em;
+    color: var(--bg-0); background: var(--accent); padding: 10px 20px; border-radius: 7px;
+  }
+  .evidence .body { font-size: 32px; line-height: 1.5; color: var(--text); opacity: .88; }
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="grid"></div>
+
+<div class="section-no"><span class="bar"></span>01 · 开场</div>
+
+<div class="stage">
+  <div class="card neutral">
+    <div class="label">左边卡片 · 中性</div>
+    <div class="thing">概念A</div>
+    <div class="note">配角不发光 · 灰系表达「未激活」</div>
+  </div>
+  <div class="card focus">
+    <div class="label">右边卡片 · 主题色</div>
+    <div class="thing">概念B</div>
+    <div class="note">主角带柔光 · <em style="color:var(--accent)">accent</em> 只给当前重点</div>
+  </div>
+</div>
+
+<div class="verdict">
+  <div class="line">结论句 · 关键词用 <em>主题色</em> 强调</div>
+</div>
+
+<div class="evidence">
+  <div class="tag">佐证</div>
+  <div class="body">证据/数字条 —— 事实必须有调研出处（research/调研.md 带 URL）</div>
+</div>
+
+<!-- GSAP 本地内置（技能 assets/，随项目复制）——不引任何 CDN -->
+<script src="../assets/gsap.min.js"></script>
+<!-- 节拍器：subs.py 生成，B('块文本') 返回该词起播秒。占位桩只为模板可预览 -->
+<script src="TEMPLATE_ID.beats.js"></script>
+<script>
+(function () {
+  if (!window.gsap) { console.error('gsap 未加载（assets/gsap.min.js 缺失）'); return; }
+
+  var tl = gsap.timeline({ paused: true });
+
+  // ↓↓↓ 节拍全部用 B()：解说词/配音改动 → 重跑 tts+subs → 时间自动刷新 ↓↓↓
+  var t0 = window.B ? B('左边卡片') : 0.4;          // 兜底数字只在 beats.js 缺失时用
+  var t1 = window.B ? B('右边卡片') : 1.8;
+  var t2 = window.B ? B('结论句')     : 3.6;
+  var t3 = window.B ? B('证据')       : 6.0;
+
+  tl.fromTo('.section-no', { opacity: 0, x: -34 },
+    { opacity: 1, x: 0, duration: 0.6, ease: 'power3.out' }, Math.max(0.05, t0 - 0.25));
+
+  tl.fromTo('.card.neutral', { opacity: 0, x: -54 },
+    { opacity: 1, x: 0, duration: 0.7, ease: 'power3.out' }, t0);
+  tl.fromTo('.card.neutral .thing', { opacity: 0, y: 22 },
+    { opacity: 1, y: 0, duration: 0.55, ease: 'power2.out' }, t0 + 0.4);
+
+  tl.fromTo('.card.focus', { opacity: 0, x: 54 },
+    { opacity: 1, x: 0, duration: 0.7, ease: 'power3.out' }, t1);
+  tl.fromTo('.card.focus .thing', { opacity: 0, scale: .82, transformOrigin: 'center' },
+    { opacity: 1, scale: 1, duration: 0.6, ease: 'back.out(1.7)' }, t1 + 0.35);
+  tl.fromTo('.card.focus', { boxShadow: '0 0 0 rgba(0,0,0,0) inset' },
+    { boxShadow: '0 0 90px var(--accent-glow) inset', duration: 0.8, ease: 'sine.out' }, t1 + 0.5);
+
+  tl.fromTo('.verdict', { opacity: 0, y: 34 },
+    { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }, t2);
+  tl.fromTo('.verdict .line em', { opacity: 0, scale: .7, transformOrigin: 'center' },
+    { opacity: 1, scale: 1, duration: 0.55, ease: 'back.out(2)' }, t2 + 0.5);
+
+  tl.fromTo('.evidence', { opacity: 0, y: 30 },
+    { opacity: 1, y: 0, duration: 0.65, ease: 'power3.out' }, t3);
+
+  // ---------- 注册（渲染器只认 window.__tl） ----------
+  window.__tl = tl;
+
+  // 浏览器直接打开预览时自动起播；渲染器下（__MG_RENDER__）由它逐帧 seek
+  if (!window.__MG_RENDER__) {
+    requestAnimationFrame(function () { requestAnimationFrame(function () { tl.play(0); }); });
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+# Normalize line endings on commit; check out with LF everywhere.
+# This matters because setup_env.sh is a bash script and the .mjs/.py
+# toolchain is run from Git Bash / WSL / macOS as often as from PowerShell.
+* text=auto eol=lf
+
+# Explicit for scripts people execute directly
+*.sh   text eol=lf
+*.py   text eol=lf
+*.mjs  text eol=lf
+*.js   text eol=lf
+*.py   text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+*.css  text eol=lf
+*.html text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+
+# Windows-only helpers keep CRLF
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# Binary assets: never touch
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.ico  binary
+*.zip  binary
+*.mp3  binary
+*.mp4  binary
+*.ttf  binary
+*.wasm binary

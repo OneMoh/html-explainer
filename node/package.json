@@ -1,0 +1,9 @@
+{
+  "name": "html-explainer-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "description": "vendored node deps for html-explainer renderer",
+  "dependencies": {
+    "playwright-core": "^1.63.0"
+  }
+}
