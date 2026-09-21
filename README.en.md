@@ -30,6 +30,12 @@ https://github.com/user-attachments/assets/912e6c2d-831f-43dd-a39f-57b749bb417d
 |---|---|
 | https://github.com/user-attachments/assets/8007843c-088d-457c-8550-81ec912e0add | https://github.com/user-attachments/assets/28949988-449b-4c4e-8d0f-6706af6f64ee |
 
+**Follow the test accounts — watch the video stats in real time**
+
+| Douyin · OnlyOneMoh | Profile · Moen | Douyin · Moen_xin |
+|---|---|---|
+| <img src="https://raw.githubusercontent.com/OneMoh/html-explainer-demos/main/images/douyin-qr-onlyonemoh.jpg" width="240"> | <img src="https://raw.githubusercontent.com/OneMoh/html-explainer-demos/main/images/douyin-profile-moen.jpg" width="240"> | <img src="https://raw.githubusercontent.com/OneMoh/html-explainer-demos/main/images/douyin-qr-moenxin.jpg" width="240"> |
+
 </div>
 
 ---
