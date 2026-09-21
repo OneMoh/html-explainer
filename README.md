@@ -22,9 +22,11 @@ HTML 写画面 → 确定性逐帧渲染 → 真 MP4。全本地跑，核心链�
 三条用本技能生成的成片——画面、配音、字幕、封面全部由流水线产出，无手工后期。
 封面等素材托管在[演示仓库](https://github.com/OneMoh/html-explainer-demos)，本仓库零体积。
 
-| 技能介绍片 | 港股创新药 · 早盘 | 量化简史 |
-|---|---|---|
-| https://github.com/user-attachments/assets/912e6c2d-831f-43dd-a39f-57b749bb417d | https://github.com/user-attachments/assets/8007843c-088d-457c-8550-81ec912e0add | https://github.com/user-attachments/assets/28949988-449b-4c4e-8d0f-6706af6f64ee |
+https://github.com/user-attachments/assets/912e6c2d-831f-43dd-a39f-57b749bb417d
+
+| 港股创新药 · 早盘 | 量化简史 |
+|---|---|
+| https://github.com/user-attachments/assets/8007843c-088d-457c-8550-81ec912e0add | https://github.com/user-attachments/assets/28949988-449b-4c4e-8d0f-6706af6f64ee |
 
 </div>
 

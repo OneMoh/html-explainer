@@ -24,9 +24,11 @@ Three finished videos made with this skill — visuals, voiceover, subtitles and
 produced by the pipeline, no manual post-production. Covers and other assets live in a separate
 [demos repository](https://github.com/OneMoh/html-explainer-demos); this repo stays text-only.
 
-| Skill intro | HK innovative drugs | A quant firm built an LLM |
-|---|---|---|
-| https://github.com/user-attachments/assets/912e6c2d-831f-43dd-a39f-57b749bb417d | https://github.com/user-attachments/assets/8007843c-088d-457c-8550-81ec912e0add | https://github.com/user-attachments/assets/28949988-449b-4c4e-8d0f-6706af6f64ee |
+https://github.com/user-attachments/assets/912e6c2d-831f-43dd-a39f-57b749bb417d
+
+| HK innovative drugs · early session | A quant firm built an LLM |
+|---|---|
+| https://github.com/user-attachments/assets/8007843c-088d-457c-8550-81ec912e0add | https://github.com/user-attachments/assets/28949988-449b-4c4e-8d0f-6706af6f64ee |
 
 </div>
 
