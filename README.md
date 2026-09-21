@@ -32,7 +32,7 @@ https://github.com/user-attachments/assets/912e6c2d-831f-43dd-a39f-57b749bb417d
 
 | 抖音 · OnlyOneMoh | 主页实况 · Moen | 抖音 · Moen_xin |
 |---|---|---|
-| <img src="https://raw.githubusercontent.com/OneMoh/html-explainer-demos/main/images/douyin-qr-onlyonemoh.jpg" width="240"> | <img src="https://raw.githubusercontent.com/OneMoh/html-explainer-demos/main/images/douyin-profile-moen.jpg" width="240"> | <img src="https://raw.githubusercontent.com/OneMoh/html-explainer-demos/main/images/douyin-qr-moenxin.jpg" width="240"> |
+| <img src="https://raw.githubusercontent.com/OneMoh/html-explainer-demos/main/images/douyin-qr-moh-onlyonemoh.jpg" width="240"> | <img src="https://raw.githubusercontent.com/OneMoh/html-explainer-demos/main/images/douyin-profile-moen.jpg" width="240"> | <img src="https://raw.githubusercontent.com/OneMoh/html-explainer-demos/main/images/douyin-qr-moenxin.jpg" width="240"> |
 
 </div>
 
