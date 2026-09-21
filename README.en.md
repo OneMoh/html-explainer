@@ -18,6 +18,22 @@ locally; the core pipeline needs no API key and charges no per-render fee.
 
 [简体中文](README.md) · [English](README.en.md)
 
+<br/>
+
+Three finished videos made with this skill — visuals, voiceover, subtitles and covers all
+produced by the pipeline, no manual post-production. The media lives in a separate
+[demos repository](https://github.com/OneMoh/html-explainer-demos); this repo stays text-only.
+
+<br/>
+
+<video src="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/videos/01-ai-era-self-made-video.mp4" poster="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/covers/01-ai-era-self-made-video.png" controls width="86%"></video>
+
+<br/>
+
+<video src="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/videos/02-hk-innovative-drug-early-session.mp4" poster="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/covers/02-hk-innovative-drug-early-session.png" controls width="42.5%"></video> <video src="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/videos/03-quant-company-built-an-llm.mp4" poster="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/covers/03-quant-company-built-an-llm.png" controls width="42.5%"></video>
+
+<br/>
+
 </div>
 
 ---
@@ -263,7 +279,7 @@ reproducible output; needing to run offline or refusing per-render fees.
 
 **Poor fit:** live-action editing, talking-head footage, re-creating an existing video; wanting a
 drag-and-drop editor (scenes are code, deliberately); wanting React component animation as the
-authoring model — that is the domain of the sibling project
+authoring model — that is the domain of the reference project
 [`anything2explainer`](https://github.com/Vincentwei1021/anything2explainer).
 
 ---

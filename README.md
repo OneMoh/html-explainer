@@ -17,6 +17,21 @@ HTML 写画面 → 确定性逐帧渲染 → 真 MP4。全本地跑，核心链�
 
 [简体中文](README.md) · [English](README.en.md)
 
+<br/>
+
+三条用本技能生成的成片——画面、配音、字幕、封面全部由流水线产出，无手工后期。
+视频与封面托管在[演示仓库](https://github.com/OneMoh/html-explainer-demos)，本仓库零体积。
+
+<br/>
+
+<video src="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/videos/01-ai-era-self-made-video.mp4" poster="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/covers/01-ai-era-self-made-video.png" controls width="86%"></video>
+
+<br/>
+
+<video src="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/videos/02-hk-innovative-drug-early-session.mp4" poster="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/covers/02-hk-innovative-drug-early-session.png" controls width="42.5%"></video> <video src="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/videos/03-quant-company-built-an-llm.mp4" poster="https://cdn.jsdelivr.net/gh/OneMoh/html-explainer-demos@main/covers/03-quant-company-built-an-llm.png" controls width="42.5%"></video>
+
+<br/>
+
 </div>
 
 ---
@@ -247,7 +262,7 @@ tl.fromTo('.verdict', { scale: 0.8 },          { scale: 1, duration: 0.6 },     
 且宁愿用 HTML 描述画面也不想学动效软件；需要可复现的输出；需要离线跑或拒绝按次计费。
 
 **不适合**：实拍剪辑、真人口播、复刻已有视频；想要图形化拖拽编辑器（画面是代码，这是刻意
-选择）；想把 React 组件动画作为创作模型 —— 那是姊妹项目
+选择）；想把 React 组件动画作为创作模型 —— 那是参考项目
 [`anything2explainer`](https://github.com/Vincentwei1021/anything2explainer) 的领域。
 
 ---
