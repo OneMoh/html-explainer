@@ -99,30 +99,10 @@ exception and only reads `.claude/skills/`.)
 
 ---
 
-## Quick start
+## Video project layout
 
-A video takes **seven commands**, all run inside the **video project directory**:
-
-```bash
-PY=<path to your venv python>   # expand to an absolute path when briefing a sub-agent
-SKILL=<skill install directory>
-
-# 0 · scaffold a project (tree + config + theme + both cover templates)
-"$PY" "$SKILL/scripts/new_project.py" ~/videos/sky-blue sky-blue --topic "why the sky is blue"
-cd ~/videos/sky-blue
-# …fill narration.json, fill project.json's order, author one frames/<id>.html per scene…
-
-"$PY" "$SKILL/scripts/tts_build.py"      --project .   # 1 · voiceover
-"$PY" "$SKILL/scripts/timeline_build.py" --project .   # 2 · global timeline
-"$PY" "$SKILL/scripts/subs.py"           --project .   # 3 · subtitles + beats
-"$PY" "$SKILL/scripts/lint_frames.py"    --project .   # 4 · audit frames before rendering
-node    "$SKILL/scripts/render_video.mjs" . --preview 30   # 5 · 30-second draft first
-"$PY" "$SKILL/scripts/qc_check.py"       --project .   # 6 · QC
-node    "$SKILL/scripts/render_video.mjs" .            # 7 · full render
-node    "$SKILL/scripts/cover_build.mjs"  .            #    + both covers
-```
-
-Output lands in `out/`: `slug.mp4`, `cover_169.png`, `cover_34.png`, `slug.srt`, `slug.vtt`, plus
+Say one sentence and the agent walks the whole pipeline inside a **video project directory**;
+output lands in `out/`: `slug.mp4`, `cover_169.png`, `cover_34.png`, `slug.srt`, `slug.vtt`, plus
 `qc_report.md` and `qc_sheet.jpg`.
 
 A **video project** looks like this:
@@ -136,12 +116,6 @@ my-video/
 ├── audio/  render/  research/  script/
 └── out/              # MP4, covers, SRT/VTT, QC report
 ```
-
-The order matters: `beats.js` is derived from the TTS output. That is why, after you edit the
-narration, everything downstream re-times automatically while no scene code changes.
-
-> **If you plan to reuse the rendered PNGs, always pass `--keep-frames`.** Preview mode clears the
-> frame directory after muxing by design.
 
 ---
 
@@ -200,30 +174,6 @@ flowchart LR
     style H fill:#8957e5,color:#fff
     style M fill:#238636,color:#fff
 ```
-
----
-
-## Command reference
-
-| Command | Purpose |
-|---|---|
-| `new_project.py <dir> <slug> --topic "..."` | Scaffold a project |
-| `tts_build.py --project .` | Synthesise voiceover (caching, timeouts, backoff retries, silence trim) |
-| `timeline_build.py --project .` | Global timeline + stitched `narration-full.mp3` |
-| `subs.py --project .` | Three subtitle outputs + one `beats.js` per scene |
-| `lint_frames.py --project .` | Audit frames against the eight contract rules |
-| `render_video.mjs <dir>` | Render and mux the MP4 |
-| `qc_check.py --project .` | Loudness / duration / stream checks + contact sheet |
-| `cover_build.mjs <dir>` | Render both covers, 2× by default |
-
-Common optional flags: `--preview N` renders only the first N seconds, `--keep-frames` keeps the
-frame PNGs, `--only id,id` audits just the named scenes, `--scale N` sets the output multiplier.
-
-A few handy extras: `peek_frame.mjs <dir> <id>` (screenshot one scene in seconds — the one you
-reach for while designing), `make_theme.py --topic "medical" --use` (derive a palette from a topic
-word), `package_skill.py` (build a portable zip).
-
-**Full flag reference is in [`SKILL.md`](SKILL.md), or pass `--help` to any script.**
 
 ---
 
@@ -319,7 +269,7 @@ authoring model — that is the domain of the sibling project
 
 ---
 
-## Prior work and sibling projects
+## Reference project ideas
 
 `html-explainer` did not invent its methodology. It has two clear sources of ideas. Both are
 **independent projects by different authors — not the same author as this one**, and this
@@ -350,16 +300,6 @@ you want frame-level reproducibility, use this one.
 
 ---
 
-## Roadmap
-
-- [ ] Per-scene render switch (`--only <id>`) — today this needs the temporary-project workaround
-- [ ] Cover layout measurement tool (line count / margins / overlap / hook font size in one pass)
-- [ ] More cover aspect ratios
-- [ ] English descriptions in the style catalogue
-- [ ] Optional music bed with automatic ducking under narration
-
----
-
 ## Contributing
 
 Issues and PRs are welcome. The most valuable contribution is a **diagnosed silent failure** added
@@ -377,14 +317,3 @@ MIT covers the original code and documentation. Bundled third-party components a
 style specifications remain under their own terms; GSAP is bundled under GreenSock's
 [standard "no charge" licence](https://gsap.com/standard-license). Full notices are in
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) (Chinese).
-
----
-
-<div align="center">
-
-**Author: Moh**
-
-Built because "edit one sentence, then re-align the entire video by hand" is not a good way to
-spend an afternoon.
-
-</div>

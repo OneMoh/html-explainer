@@ -95,33 +95,13 @@ Windows 上 `~` 就是 `C:\Users\<你的用户名>`。
 
 ---
 
-## 快速开始
+## 视频项目结构
 
-一条视频由**七条命令**跑完，都在**视频项目目录**里执行：
+说一句需求，智能体会在一个**视频项目目录**里走完整个流水线；产物落在 `out/`：
+`slug.mp4`、`cover_169.png`、`cover_34.png`、`slug.srt`、`slug.vtt`，外加 `qc_report.md`
+与 `qc_sheet.jpg`。
 
-```bash
-PY=<你的 venv python 路径>     # 派给子智能体时要展开成绝对路径
-SKILL=<技能安装目录>
-
-# 0 · 建项目脚手架（目录树 + 配置 + 主题 + 两份封面模板）
-"$PY" "$SKILL/scripts/new_project.py" ~/videos/sky-blue sky-blue --topic "为什么天空是蓝色的"
-cd ~/videos/sky-blue
-# …填 narration.json、填 project.json 的 order、为每个场景写一个 frames/<id>.html…
-
-"$PY" "$SKILL/scripts/tts_build.py"      --project .   # 1 · 配音
-"$PY" "$SKILL/scripts/timeline_build.py" --project .   # 2 · 全局时间轴
-"$PY" "$SKILL/scripts/subs.py"           --project .   # 3 · 字幕 + 节拍
-"$PY" "$SKILL/scripts/lint_frames.py"    --project .   # 4 · 渲染前体检画面
-node    "$SKILL/scripts/render_video.mjs" . --preview 30   # 5 · 先出 30 秒样片
-"$PY" "$SKILL/scripts/qc_check.py"       --project .   # 6 · QC
-node    "$SKILL/scripts/render_video.mjs" .            # 7 · 全片渲染
-node    "$SKILL/scripts/cover_build.mjs"  .            #    + 封面双方案
-```
-
-产物都在 `out/`：`slug.mp4`、`cover_169.png`、`cover_34.png`、`slug.srt`、`slug.vtt`，
-外加 `qc_report.md` 与 `qc_sheet.jpg`。
-
-**视频项目**长这样：
+项目目录长这样：
 
 ```
 my-video/
@@ -132,12 +112,6 @@ my-video/
 ├── audio/  render/  research/  script/
 └── out/              # MP4、封面、SRT/VTT、QC 报告
 ```
-
-顺序不能乱：`beats.js` 由 TTS 产出推导而来。这就是为什么改了解说词之后，下游全部自动重排
-时序，而画面代码一行都不用动。
-
-> **只要打算复用渲出来的 PNG，就一定要加 `--keep-frames`。** 预览模式在合成后会按设计
-> 清空帧目录。
 
 ---
 
@@ -192,29 +166,6 @@ flowchart LR
     style H fill:#8957e5,color:#fff
     style M fill:#238636,color:#fff
 ```
-
----
-
-## 命令参考
-
-| 命令 | 作用 |
-|---|---|
-| `new_project.py <dir> <slug> --topic "主题"` | 建项目脚手架 |
-| `tts_build.py --project .` | 合成配音（带缓存、超时、退避重试、裁静音） |
-| `timeline_build.py --project .` | 全局时间轴 + 拼接 `narration-full.mp3` |
-| `subs.py --project .` | 字幕三出口 + 每场景 `beats.js` |
-| `lint_frames.py --project .` | 按八条契约静态体检画面帧 |
-| `render_video.mjs <dir>` | 渲染并合成 MP4 |
-| `qc_check.py --project .` | 响度 / 时长 / 流体检 + 抽帧速览图 |
-| `cover_build.mjs <dir>` | 渲染封面双方案，默认 2 倍图 |
-
-常用可选参数：`--preview N` 只渲前 N 秒样片、`--keep-frames` 保留帧 PNG、
-`--only id,id` 只体检指定场景、`--scale N` 输出倍率。
-
-另有几个顺手的小工具：`peek_frame.mjs <dir> <id>`（单场景秒级截图，改画面时最常用）、
-`make_theme.py --topic "医疗" --use`（按主题词推配色）、`package_skill.py`（打成可移植 zip）。
-
-**完整参数表见 [`SKILL.md`](SKILL.md)，或对任一脚本加 `--help`。**
 
 ---
 
@@ -302,7 +253,7 @@ tl.fromTo('.verdict', { scale: 0.8 },          { scale: 1, duration: 0.6 },     
 
 ---
 
-## 参考思路与姊妹项目
+## 参考项目思路
 
 `html-explainer` 的方法论不是凭空来的。它有两处明确的思想来源，两个项目都**由不同作者独立
 开发，与本项目不是同一作者**；本仓库不打包、运行时不依赖它们的任何代码 —— 吸收的是设计规范
@@ -327,16 +278,6 @@ tl.fromTo('.verdict', { scale: 0.8 },          { scale: 1, duration: 0.6 },     
 
 ---
 
-## 路线图
-
-- [ ] 单场景渲染开关（`--only <id>`）—— 目前需要临时项目法绕过
-- [ ] 封面排版终态测量器（行数 / 四边边距 / 元素重叠 / 钩子字号一次判完）
-- [ ] 更多封面比例
-- [ ] 风格目录补英文说明
-- [ ] 可选背景音乐轨，并对解说自动做闪避（ducking）
-
----
-
 ## 参与贡献
 
 欢迎提 issue 和 PR。最有价值的贡献，是一条**已被定位的静默失败**，加进
@@ -352,13 +293,3 @@ tl.fromTo('.verdict', { scale: 0.8 },          { scale: 1, duration: 0.6 },     
 MIT 覆盖原创代码与文档。第三方组件与衍生出的风格规范仍适用其各自的条款；GSAP 按 GreenSock
 的 [standard "no charge" 许可](https://gsap.com/standard-license) 内置。完整声明见
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
-
----
-
-<div align="center">
-
-**作者：Moh**
-
-做这个项目，是因为「改一句话然后把整片手工重新对位一遍」实在不是一种好的过下午的方式。
-
-</div>
