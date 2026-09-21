@@ -248,7 +248,6 @@ rules and the pre-upload checklist: [`references/cover-guide.md`](references/cov
 | Cover renders at 1× | Same trap, `deviceScaleFactor` twin | Pass to `newPage()` + `screenshot({ scale: 'device' })` |
 | Numbers render but never move | The seek suppressed `onUpdate` callbacks | Renderer fixed (`pause(t, false)`); use a transform-based number reel in scenes |
 | `No such file or directory` on Windows | Non-ASCII path — Windows ffmpeg reads UTF-8 as ANSI | Keep paths ASCII |
-| Preview finished, frame PNGs are gone | Preview mode clears the frame directory by design | Pass `--keep-frames` |
 
 **`references/lessons.md` is the most valuable file in this repository.** 34 numbered entries, each
 one a bug where "the video looked fine but was wrong" — including how it was misdiagnosed at first.

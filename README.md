@@ -234,7 +234,6 @@ tl.fromTo('.verdict', { scale: 0.8 },          { scale: 1, duration: 0.6 },     
 | 封面出成 1 倍图 | 同上，`deviceScaleFactor` 的孪生坑 | 传 `newPage()` + `screenshot({ scale: 'device' })` |
 | 数字能渲染但永远不动 | seek 抑制了 `onUpdate` 回调 | 渲染器已修（`pause(t, false)`）；帧里改用 transform 数字卷轴 |
 | Windows 上 `No such file or directory` | 非 ASCII 路径 —— Windows 的 ffmpeg 把 UTF-8 当 ANSI 读 | 路径保持 ASCII |
-| 预览渲完，帧 PNG 不见了 | 预览模式按设计会清空帧目录 | 加 `--keep-frames` |
 
 **`references/lessons.md` 是这个仓库里最值钱的文件。** 34 条编号记录，每一条都是一个
 「成片看着挺正常、其实是错的」的 bug —— 包括它一开始是怎么被误判的。从零开始 debug 之前，
