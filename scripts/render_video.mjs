@@ -24,7 +24,15 @@
  * 用法（项目目录 = 含 project.json 的目录）：
  *   node render_video.mjs <projectDir> [--out out/<slug>.mp4]
  *        [--preview 30] [--fps 30] [--concurrency 3] [--jpeg]
- *        [--scale 1] [--keep-frames]
+ *        [--scale 1] [--keep-frames] [--mux-only] [--only <场景id,场景id>]
+ *
+ *   --mux-only：跳过截图，用 render/frames 里已有的帧直接重新合成
+ *               （改合参 / 换音轨后不用重渲 20 分钟）
+ *
+ *   --only coda：改完某一场的文案/动效后，只重渲这一场的帧，其余帧保持不动。
+ *               仅当被改场景是**最后一场**时安全；若它在中间且时长变了，
+ *               其后场景的帧号会整体前移，必须整片重渲。
+ *               变短后记得删掉尾部的过期帧，否则成片会拖长（脚本会提示实际帧数）。
  *
  * 环境解析顺序：
  *   浏览器  env BROWSER_PATH → Chrome → Edge → playwright 自带 chromium
@@ -56,6 +64,8 @@ function parseArgs(argv) {
     else if (t === '--jpeg') a.jpeg = true;
     else if (t === '--scale') a.scale = parseFloat(argv[++i]);
     else if (t === '--keep-frames') a.keepFrames = true;
+    else if (t === '--mux-only') a.muxOnly = true;
+    else if (t === '--only') a.only = String(argv[++i] || '').split(',').map((s) => s.trim()).filter(Boolean);
     else if (t === '--browser') a.browser = argv[++i];
     else if (!t.startsWith('--')) a._.push(t);
   }
@@ -275,7 +285,16 @@ async function main() {
   log(`场景 ${scenes.length} 个 · 总时长 ${renderSec.toFixed(2)}s · ${totalFrames} 帧 @${fps}fps`);
   log(`画布 ${W}x${H} · ${args.jpeg ? 'JPEG 草稿模式' : 'PNG 精细模式'} · 并发 ${args.concurrency || 3}`);
 
-  const browser = await chromium.launch(launchOpts);
+  let browser = null;
+  if (!args.muxOnly) {
+    browser = await chromium.launch(launchOpts);
+  } else {
+    // 只重新合成：不启动浏览器，直接用 render/frames 里已有的帧
+    const have = fs.existsSync(framesDir) ? fs.readdirSync(framesDir).filter(f => /^f_\d+\.(png|jpg)$/.test(f)).length : 0;
+    log(`--mux-only：跳过截图，用现有 ${have}/${totalFrames} 帧重新合成`);
+    if (have === 0) die('render/frames 里没有帧，无法只合成');
+    if (have < totalFrames) log(`⚠ 帧数不足（${have}/${totalFrames}），成片会短于 layout`);
+  }
 
   // 章节刻度（可选：project.json.chapters = [{title, startSegment}]）
   const chapterTicks = (pj.chapters || [])
@@ -345,16 +364,30 @@ async function main() {
   }
 
   // 场景级并发（默认 3；帧级不需要——同 page 顺序 seek）
-  const conc = Math.max(1, Math.min(args.concurrency || 3, scenes.length));
-  const queue = [...scenes];
-  const workers = Array.from({ length: conc }, () => (async () => {
-    while (queue.length && !errors.length) { const sc = queue.shift(); await renderScene(sc); }
-  })());
-  await Promise.all(workers);
-  await browser.close();
-  if (errors.length) die(`渲染失败：\n  ${errors.join('\n  ')}`);
+  if (!args.muxOnly) {
+    // --only a,b：只重渲指定场景的帧（其余场景的帧保持不动）。
+    // ★ 只允许改「帧号全在片尾、不影响其他场景偏移」的场景（通常是最后一场）；
+    //   若被改场景变短，其后所有场景的帧号都会前移，必须整片重渲。
+    const only = args.only && args.only.length ? args.only : null;
+    if (only) {
+      const unknown = only.filter((id) => !scenes.some((s) => s.id === id));
+      if (unknown.length) die(`--only 里这些场景不存在：${unknown.join(', ')}`);
+      const firstIdx = Math.min(...only.map((id) => order.indexOf(id)));
+      if (firstIdx < order.length - 1)
+        log(`⚠ --only 包含非末场场景（${order[firstIdx]}）——若其时长变化，其后场景帧号会整体前移，请整片重渲`);
+      log(`--only：只渲 ${only.join(', ')}，跳过其余 ${scenes.length - new Set(only).size} 个场景`);
+    }
+    const queue = only ? scenes.filter((s) => only.includes(s.id)) : [...scenes];
+    const conc = Math.max(1, Math.min(args.concurrency || 3, queue.length));
+    const workers = Array.from({ length: conc }, () => (async () => {
+      while (queue.length && !errors.length) { const sc = queue.shift(); await renderScene(sc); }
+    })());
+    await Promise.all(workers);
+    await browser.close();
+    if (errors.length) die(`渲染失败：\n  ${errors.join('\n  ')}`);
 
-  log(`截图完成：${doneFrames} 帧，耗时 ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+    log(`截图完成：${doneFrames} 帧，耗时 ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+  }
 
   // ---------- ffmpeg 合成 ----------
   const audioPath = path.join(projectDir, 'audio', 'narration-full.mp3');
@@ -370,7 +403,14 @@ async function main() {
     '-crf', args.jpeg ? '23' : '18', '-pix_fmt', 'yuv420p',
     '-movflags', '+faststart',
   );
-  if (hasAudio) cmd.push('-c:a', 'aac', '-b:a', '160k', '-shortest');
+  if (hasAudio) {
+    cmd.push('-c:a', 'aac', '-b:a', '160k');
+    // 音轨短于视频时补静音，而不是用 -shortest 砍掉视频尾部。
+    // layout 的 video_duration_sec 含片尾留白（末块字幕的收尾余韵），
+    // -shortest 会按音轨长度截视频，把这段留白连同最后一块字幕一起切掉
+    // （实测：片尾字幕从设计的 1.5s 缩到 1.16s）。改用 apad 补静音 + -t 锁视频长度。
+    cmd.push('-af', 'apad', '-t', renderSec.toFixed(3));
+  }
   cmd.push(outPath);
 
   log(hasAudio ? `合成：${totalFrames} 帧 + ${audioPath}` : '合成：无音轨（配音还没生成）');

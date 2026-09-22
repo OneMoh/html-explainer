@@ -69,7 +69,7 @@ body:
     attributes:
       label: 版本
       description: SKILL.md 里的 `version:` 字段，或发布 tag。
-      placeholder: "1.2.2"
+      placeholder: "1.2.3"
     validations:
       required: true
 

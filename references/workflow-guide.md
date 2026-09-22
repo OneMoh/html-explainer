@@ -98,6 +98,30 @@ node <skill>/scripts/render_video.mjs .               # PNG 精渲 + 音轨 mux 
 "$PY" <skill>/scripts/qc_check.py --project .          # 体检 + 抽帧速览图
 ```
 
+### 改一句文案之后
+
+成片已经渲完，用户对某一场的**文案**（旁白/画面文字）有意见时，不必整片重渲：
+
+```bash
+# 1. 改 narration.json → 重跑阶段 2 三条命令（tts 缓存命中其余段，只重合成改过的段）
+python <skill>/scripts/tts_build.py    --project .
+python <skill>/scripts/timeline_build.py --project .
+python <skill>/scripts/subs.py         --project .     # beats.js / subs.json 全量刷新
+# 2. 改帧代码（build_frames.py 或对应 frames/<id>.html）→ 重建帧
+python build_frames.py
+"$PY" <skill>/scripts/lint_frames.py --project . && "$PY" tools/check_beats.py
+# 3. 只重渲改过的那一场 + 用现有帧重新合成
+node <skill>/scripts/render_video.mjs . --only <场景id>
+node <skill>/scripts/render_video.mjs . --mux-only
+```
+
+**两个前提**（详见 `lessons.md` 第 45 条）：`--only` 只对**末场**安全；
+被改场景变短后**必须删掉尾部的过期帧**，否则成片会比 layout 长。
+验收口径是「帧号连续无缺口 + 成片时长 == layout 总长」，不能只看渲染日志的 ✓。
+
+> 改文案之前先自查一遍**这句是不是废话**——尤其是结尾。三类稳定废句
+> （`A 或者不 A` 的同义反复、复读标题的自指句、鸡汤式留白）见 `lessons.md` 第 43 条。
+
 ## 阶段 6 · QC 与修复
 
 先看 `out/qc_report.md`（FAIL 必须清零）+ `out/qc_sheet.jpg` 肉眼过：

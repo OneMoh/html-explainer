@@ -5,11 +5,12 @@ qc_check.py —— 成片体检 + 抽帧速览图。
 
 检查项（全部来自两个血统项目的实战教训）：
   ① 流：必须有 h264 video + aac audio 两条流
-  ② 时长：成片 vs 音轨 vs layout.json 期望帧数 —— 差 >0.5s 判 FAIL
-     （差 ~0.9s×N 段 = 帧时长用了词边界而非容器时长的典型症状）
+  ② 时长：成片 vs layout.json 的 video_duration_sec —— 差 >0.5s 判 FAIL
+     （差 ~0.9s×N 段 = 帧时长用了词边界而非容器时长的典型症状；
+      成片比 layout 短 ~0.5s = 合成时被 -shortest 按音轨长度截了，见 lessons #33）
   ③ 音量：成片 mean_volume 与源音轨差 >3dB 判 FAIL（静音轨/占位轨）
-  ④ 抽帧：按字幕切换点 + 每场景中段抽帧，纯背景帧（体积过小）判 FAIL
-     （1920×1080 纯背景 PNG ≈ 90KB 上下；有内容通常 220KB+）
+  ④ 抽帧：按字幕切换点 + 每场景中段抽帧；体积低于本片中位数 35% 且画面近乎
+     无内容（唯一色数 <300 且 sd <6）才判可疑 —— 极简页压缩后天然体积小
   ⑤ 速览图：6 列 contact sheet → out/qc_sheet.jpg（肉眼过一遍字幕带/构图）
 
 用法：
@@ -117,10 +118,18 @@ def main() -> int:
             report.append(f"- ✓ 与期望差 {d:.2f}s")
     if os.path.exists(audio):
         adur, _, _ = probe(ff, audio)
-        d = abs(vdur - adur)
-        report.append(f"- 音轨 {adur:.2f}s，成片差 {d:.2f}s")
-        if d > 0.5:
-            fails.append(f"音画时长差 {d:.2f}s —— 典型原因：帧时长用了词边界时长（每段少 ~0.86s）")
+        # 有符号差：正数 = 成片比音轨长。layout 的 video_duration 比音轨多出
+        # 一小段片尾留白（末块字幕的收尾余韵），成片略长于音轨是正常的；
+        # 反过来「成片比音轨短」才是故障——视频被 -shortest 截了尾部，见 lessons #33。
+        d = vdur - adur
+        if d >= -0.15:
+            report.append(f"- 音轨 {adur:.2f}s，成片 {vdur:.2f}s"
+                          f"（{d:+.2f}s，片尾留白，正常）")
+        else:
+            report.append(f"- 音轨 {adur:.2f}s，成片 {vdur:.2f}s"
+                          f"（★ 成片比音轨短 {-d:.2f}s，末段画面被截）")
+            fails.append(f"成片比音轨短 {-d:.2f}s —— 合成时视频尾部被截"
+                         f"（render_video.mjs 应改用 apad 补静音 + -t，见 lessons #33）")
 
     # ③ 音量
     sec("音量")
@@ -167,12 +176,29 @@ def main() -> int:
         floor = max(12_000, int(med * 0.35))
         report.append(f"- 抽了 {len(sizes)} 帧 → out/qc_frames/"
                       f"（本片抽帧体积中位数 {med // 1024}KB，可疑线 {floor // 1024}KB）")
-        for t, sz, _ in sizes:
-            flag = "  ← 可疑" if sz < floor else ""
-            report.append(f"  - {t:>6.2f}s  {sz // 1024:>4}KB{flag}")
-            if sz < floor:
-                warns.append(f"{t}s 抽帧 {sz // 1024}KB，低于本片中位数 {med // 1024}KB 的 35%"
-                             f" —— 疑似空画面（主角没渲出来？核对 out/qc_frames/ 该帧）")
+        for t, sz, p in sizes:
+            suspicious = sz < floor
+            note = ""
+            # 体积小 ≠ 空画面：极简页（片头淡入起点、纯底 + 单行大字）压缩后天然极小。
+            # 见 lessons #32。二次判定——真的去看画面里有没有内容。
+            if suspicious:
+                try:
+                    from PIL import Image
+                    import numpy as _np
+                    a = _np.asarray(Image.open(p).convert("RGB").resize((320, 180)))
+                    ncol = len(_np.unique(a.reshape(-1, 3), axis=0))
+                    sd = float(a.std())
+                    if ncol >= 300 or sd >= 6:
+                        suspicious = False
+                        note = f"  （体积低但有内容：{ncol} 色 / sd {sd:.1f}，判为极简画面）"
+                except Exception:
+                    pass
+            flag = "  ← 可疑" if suspicious else ""
+            report.append(f"  - {t:>6.2f}s  {sz // 1024:>4}KB{flag}{note}")
+            if suspicious:
+                warns.append(f"{t}s 抽帧 {sz // 1024}KB，低于本片中位数 {med // 1024}KB 的 35%，"
+                             f"且画面近乎无内容 —— 疑似空画面／主角没渲出来"
+                             f"（核对 out/qc_frames/ 该帧）")
     else:
         report.append("- 未能抽到任何帧")
 
