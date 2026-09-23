@@ -9,6 +9,87 @@
 
 ---
 
+## [1.3.0] — 2026-09-23
+
+### 新增
+
+- **★ 火山引擎（豆包）语音合成 2.0 作为可选配音引擎。** 原先只有 edge-tts；
+  现在 `tts_build.py --provider edge|volcano`，`project.json` 记 `provider` 字段。
+  两个引擎产出的 `audio-manifest.json` **结构完全一致**（`boundaries` 均为「秒 + 原始坐标系」），
+  因此 `timeline_build.py` / `subs.py` / 渲染器**零改动**。
+- **`scripts/tts_volcano.py`** —— 火山 TTS 接口包（SDK 层）。走 **HTTP Chunked 单向流式**
+  `POST /api/v3/tts/unidirectional`：与 edge-tts 形态同构（发一次、收一串），
+  故缓存 / 硬超时 / 退避重试 / 裁静音 / 两级时钟全部原样复用。
+  **零第三方依赖**（只用标准库 `urllib`）。`--check` / `--voices` / `--synth` 三个子命令。
+- **`scripts/tts_setup.py`** —— 配音方案向导：选方案 → 缺密钥则生成 `tts.env` 模板并停下 →
+  测连接 → 选音色 → 写回 `project.json`。输出 `NEXT_ACTION=…` 供 agent 判断下一步。
+- **`tts.env.example`** —— 密钥模板（入库；真实 `tts.env` 被忽略）。
+
+### 安全
+
+- **★ 密钥纪律：agent 不读、仓库不记、日志不吐、分发不含。** 四条都由结构保证：
+  ① 密钥只从 `tts.env` 读取，而只有 `tts_volcano.py` 读它 —— agent 只调接口包；
+  ② 异常信息过 `_redact()` 脱敏（只抹本次实际加载的密钥值与 `AKLT…` 形态 token，
+     保留 reqid/logid 以便排查）；
+  ③ `.gitignore` 新增 `tts.env` / `*.env` / `*.key` / `*.pem` / `secrets/`；
+  ④ **`check_integrity.py` 新增「密钥防线」检查**（gitignore 覆盖 + 遍历仓库抓非空密钥赋值与
+     `AKLT…` token，空模板不算违规），CI 在无密钥环境下跑通。
+- **★ 修掉一个真实的密钥外泄口：`package_skill.py` 原先不排除 `tts.env`** ——
+  技能目录里若放了这个文件，打包会把用户的 API Key 一起塞进可分发的 zip。
+  已加入 `EXCLUDE_NAMES` / `EXCLUDE_SUFFIX`（`tts.env`、`*.env`、`*.key`、`*.pem`），
+  模板 `tts.env.example` 保留。已实测：打包后 zip 内无密钥文件、内容级扫描无密钥串。
+
+### 修复
+
+- **`tts_setup.py` 的方案选定后未落盘**：用户选火山 → 生成模板 → 填密钥 → 回来跑 `--check`，
+  此时 `project.json` 还写着 `edge`，会**静默去测 edge 并报「就绪」**。现在方案一旦确定立刻写盘。
+- `--check` 现在先打印 `测试方案：<provider>`，避免「测的其实不是你以为的那个」。
+- `ensure_env_file()` 的查找顺序改成与 `tts_volcano.env_candidates()` 一致
+  （项目目录 → 技能目录 → 新建于项目目录），消除「向导认技能目录的、接口包认项目目录的」错位。
+
+### 修复（首次真机联调后补齐）
+
+> v1.3.0 在合并前用**真实 API Key** 跑了完整链路（向导 → 真合成 → timeline → subs → 打包），
+> 又抓出 4 个只看代码发现不了的问题。以下都已修复并实测通过；v1.3.0 此前从未发布，故不另起版本号。
+
+- **★ 字级时间戳必须显式开 `audio_params.enable_subtitle: true`。** 官方文档的响应示例里
+  `sentence.words[]` 是有值的，容易误以为「默认就给」——**实测不传这个参数 `words` 恒为空数组**
+  （同文本对照：`false` → `words=0`，`true` → `words=10`）。而且它**完全不报错**：音频正常、
+  时长正常、`sentence.text` 也正常。下游 `subs.py` 会静默退回**按字数插值**，成片照样出、
+  字幕开始飘。现已在接口包默认开启，并在拿到音频却没有时间戳时返回 `warning`
+  让 `tts_build.py` 打到台面上。该能力仅豆包 2.0 的中英文音色支持。
+- **计费字数永远是 0**：`usage.text_words` 挂在**结束标记那一行**（`code=20000000`），
+  而解析循环先判结束标记就 `continue` 了，那一行从没被读完。同时补上
+  `X-Control-Require-Usage-Tokens-Return: *` 请求头（不传该头服务端根本不返回 `usage`）。
+  修后实测：`计费 20 字` 与文本逐字对上。
+- **★ 命中缓存时丢失首裁量 → 首跑与重跑产出不一致。** 词边界是原始坐标系，下游靠
+  `lead_cut_sec` 平移；缓存只存了边界数组，于是**重跑 `lead_cut_sec=0`、首跑是 0.037**
+  ——字幕整体晚一帧，且只在第二次跑时出现。缓存格式改为
+  `{"boundaries": [...], "lead_cut_sec": x}`，并对旧版裸列表格式做兼容读取。
+- **CLI 把中文音色名原样当 `speaker` 发出去**：`--voice "云舟 2.0"` 被服务端拒绝，
+  报的是 `55000000 resource ID is mismatched with speaker related resource`
+  ——完全看不出是「名字没解析」。现把 `resolve_voice_token()`（名称/序号/ID）与
+  `parse_rate_percent()`（`+8%`/`8`/`0.08`）都收进接口包，`tts_setup.py` 改为委托，
+  消除两份实现跑偏的可能。
+- 火山项目的 `rate` 会沿用 `new_project.py` 写的 edge 格式 `+8%`，现按引擎清洗
+  （火山存 int 百分比）；`--status` 在 `rate=0` 时不再误报「未设置」（`0` 是 falsy）。
+- `check_integrity.py` 缺模板时新增提示：若同目录存在 `tts.env`，直接说明
+  **「疑似把模板改名成了 tts.env」**（实测踩到的真实用法）。
+
+### 备注
+
+- 火山接口的坑已处理并写进文档：**结束标记 `code=20000000`（不是 0，误判会丢最后一段音频）**、
+  单请求文本上限 ~200 字（超了按标点切分并按实际时长平移词边界）、
+  **字级时间戳需显式开 `audio_params.enable_subtitle`**（见上）。
+- `openspeech.bytedance.com` 是境内端点，接口包**默认绕过系统代理直连**；需要时设 `VOLC_PROXY`。
+- edge 独有的「相邻数字补逗号」对火山**不启用** —— 它会改动送进去的文本，
+  影响词边界与解说词的逐字对齐，而火山不熔读相邻数字。
+- 真机联调的验收口径：3 段共 20 块字幕，**每块起点与其首字词边界的误差均为 0.000s**；
+  首跑与缓存重跑的 manifest 深度 diff（982 个字段）完全一致；
+  打包 zip 38 个成员，密钥文件名与内容级扫描**双无命中**。
+
+---
+
 ## [1.2.3] — 2026-09-22
 
 ### 新增
@@ -151,6 +232,7 @@
 - 23 种画面风格目录，8 个类别，按改编成本分类。
 - `setup_env.sh` 做首次环境自检，`--install` 装缺失依赖；`package_skill.py` 打可移植 zip。
 
+[1.3.0]: https://github.com/OneMoh/html-explainer/releases/tag/v1.3.0
 [1.2.3]: https://github.com/OneMoh/html-explainer/releases/tag/v1.2.3
 [1.2.2]: https://github.com/OneMoh/html-explainer/releases/tag/v1.2.2
 [1.2.1]: https://github.com/OneMoh/html-explainer/releases/tag/v1.2.1

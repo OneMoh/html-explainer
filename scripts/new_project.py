@@ -59,6 +59,9 @@ def main() -> int:
         "order": [],               # 写完 narration.json 后把 id 按顺序填进来
         "theme": "violet",
         "progress": True,
+        # 配音引擎：edge = 免费免密钥；volcano = 火山引擎语音合成 2.0（需 tts.env）。
+        # ★ 建项目后先问用户用哪个 —— python <skill>/scripts/tts_setup.py --project .
+        "provider": "edge",
         "voice": "zh-CN-YunxiNeural" if args.lang == "zh" else "en-US-GuyNeural",
         "rate": "+8%",
     }

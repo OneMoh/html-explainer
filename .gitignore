@@ -14,6 +14,17 @@ node_modules/
 # ---------- Distribution bundles ----------
 dist/
 
+# ---------- Secrets ----------
+# 火山引擎（豆包）TTS 的 API Key 只存在 tts.env 里，永不入库。
+# ★ 这个文件是密钥的唯一入口；agent 不需要、也不应该读取它 ——
+#   scripts/tts_volcano.py 会自己读。模板见 tts.env.example（那个是入库的）。
+tts.env
+*.env
+!*.env.example
+secrets/
+*.key
+*.pem
+
 # ---------- Per-project runtime artifacts ----------
 # html-explainer generates these inside a *video project* directory.
 # Ignored here so a demo project created inside the repo never gets committed.

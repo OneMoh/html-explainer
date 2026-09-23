@@ -44,14 +44,23 @@ bash <skill>/setup_env.sh          # 首台机器先跑一次
    text 内用 `|` 切字幕块（中文每块 ≤16 字，切点落在语义边界）
 2. 填 `project.json` 的 `order`（= id 顺序，可选 `chapters: [{title, startSegment}]`）
 3. **确认点 2**：全文 + 章节划分 + 字数/预估时长贴给用户
-4. **确认点 3**：问一句「配音有偏好的 TTS 吗？」默认 edge-tts 云希 +8%
-5. 跑流水线（顺序不能乱）：
+4. **确认点 3 —— 配音方案与音色，必须问两件事**：
+   ① 方案：「edge-tts（免费、免密钥、开箱可用）还是火山引擎语音合成 2.0（音质更好，需 API Key）」
+   ② 音色：用 `--list-voices` 列候选让用户挑，也接受自定义音色 ID
+
+5. 跑设置向导 + 流水线（顺序不能乱）：
 
 ```bash
+"$PY" <skill>/scripts/tts_setup.py      --project .   # 定方案 + 音色；缺密钥会生成 tts.env 模板并停下
 "$PY" <skill>/scripts/tts_build.py      --project .
 "$PY" <skill>/scripts/timeline_build.py --project .
 "$PY" <skill>/scripts/subs.py           --project .
 ```
+
+   **选火山时的正确停顿姿势**：向导生成 `tts.env` 后退出码 2、打印 `NEXT_ACTION=fill_env`
+   → 告诉用户「请打开这个文件填 API Key，填好告诉我」→ **agent 不要读该文件、不要代填**
+   → 用户说填好了 → `tts_setup.py --project . --check` 测连接 → 再选音色。
+   密钥纪律与排查见 `references/volcano-tts.md`。
 
 6. 核对成片时长落在用户要的区间（差 >15% 加/删句子重跑，别改语速硬凑）
 7. **定稿后不再改词**（帧时长与节拍全部随配音重排）

@@ -36,10 +36,14 @@ EXCLUDE_DIRS = {
     "render", "research", "script",   # 项目级产物（防在技能目录内建过 demo）
 }
 # 文件名 / 后缀排除
-EXCLUDE_SUFFIX = (".pyc", ".pyo", ".beats.js", ".mp4", ".mp3", ".wav", ".log")
+EXCLUDE_SUFFIX = (".pyc", ".pyo", ".beats.js", ".mp4", ".mp3", ".wav", ".log",
+                  ".env", ".key", ".pem")      # 密钥类：绝不进可分发包
 EXCLUDE_NAMES = {
     "package-lock.json", ".DS_Store", "Thumbs.db", "qc_sheet.jpg", "qc_report.md",
     ".gitignore", ".gitattributes",
+    # ★ 密钥文件。tts.env 是火山 TTS 的 API Key 唯一落点，打包进 zip 等于把
+    #   用户的密钥随技能一起发出去。模板 tts.env.example 是入库的，不在此列。
+    "tts.env", "secrets",
 }
 
 

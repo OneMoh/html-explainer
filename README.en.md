@@ -8,7 +8,7 @@ Write scenes in HTML → deterministic frame-by-frame rendering → a real MP4. 
 locally; the core pipeline needs no API key and charges no per-render fee.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.3-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](CHANGELOG.md)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-SKILL.md-8A2BE2.svg)](SKILL.md)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%9C%93-D97757.svg)](#install)
 [![Codex](https://img.shields.io/badge/Codex-%E2%9C%93-000000.svg)](#install)
@@ -107,13 +107,88 @@ exception and only reads `.claude/skills/`.)
 
 | Item | Minimum | Notes |
 |---|---|---|
-| Python | 3.9+ | `edge-tts==7.2.8` (pinned deliberately — v7 changed the boundary API), `numpy`, `pillow`, `imageio-ffmpeg` |
+| Python | 3.9+ | `edge-tts==7.2.8` (pinned deliberately — v7 changed the boundary API), `numpy`, `pillow`, `imageio-ffmpeg`. **The Volcano engine needs nothing extra** (stdlib `urllib` only, no SDK) |
 | Node.js | 18+ | Used by the renderer and the cover builder |
 | Browser | Chrome or Edge | Auto-detected; playwright chromium (~115MB, one time) only if neither exists |
 | ffmpeg | any version | Looked up on `PATH`; falls back to the static binary bundled with `imageio-ffmpeg` |
 | Disk | ~2GB per video | Frame PNGs are large; safe to delete after muxing |
 
 `bash setup_env.sh` only reports what is missing; `--install` installs it. No admin rights needed.
+
+---
+
+## Voice-over: two engines
+
+Before the pipeline starts the agent **asks which TTS you want**, then lists candidate voices for
+you to pick from (or you can just hand it a voice ID):
+
+| | `edge-tts` | Volcano Engine TTS 2.0 |
+|---|---|---|
+| What you do | nothing | paste an API Key once |
+| Cost | free | billed per character |
+| Voices | a set of built-in zh/en voices | Doubao 2.0 voice library, incl. voice cloning |
+| Word timestamps | `WordBoundary` | `sentence.words[]` |
+| Extra deps | `edge-tts==7.2.8`, `imageio-ffmpeg` | **none** — stdlib `urllib` only |
+| When to pick it | default; works out of the box | when you want more natural prosody / better quality |
+
+Both engines emit an **identical** `audio-manifest.json`, so the timeline, the subtitles and the
+renderer **all stay untouched** — switching engines is a one-field change.
+
+### With Volcano, the only thing you touch
+
+The first time it runs Volcano, the skill **creates a `tts.env` and stops**, then tells you to paste
+your API Key into it (console → Speech → API Key management). Say "done" and the agent tests the
+connection, confirms the voice, and carries on.
+
+**That step deliberately bypasses the chat window** — the key is never sent to the agent, and the
+agent never needs to know it.
+
+Built-in voices (full list in the
+[official voice docs](https://docs.volcengine.com/docs/6561/1257544)):
+
+| Male | Female |
+|---|---|
+| Yunzhou 2.0 (default) · Wennuan Ahu 2.0 · Jieshuo Xiaoming 2.0 · Cixing Jieshuo Nan 2.0<br>Xuanyi Jieshuo 2.0 · Guanggao Jieshuo 2.0 · Ruya Qingnian 2.0 · Shaonian Zixin 2.0 · Shenye Boke 2.0 | Xiaohe 2.0 · Vivi 2.0 · Zhixing Cancan 2.0<br>Tianmei Taozi 2.0 · Linjia Nvhai 2.0 · Wenrou Shunv 2.0 |
+
+If the built-in list is not enough, a voice ID from voice cloning works too.
+
+### Key discipline
+
+The API Key lives only in `tts.env`, and **only one interface package inside the skill reads it**.
+The agent calls that package, so it neither gets nor needs the key value:
+
+```
+you (fill it in once) → tts.env (already gitignored)
+                            ↓  only the interface package reads it
+                     synthesis call  ← the agent calls this; never sees the key
+                            ↓
+                     Volcano Engine
+```
+
+- **Never in the chat**: ask the agent for key status; what comes back is a masked summary
+  (`ef90******86c8`).
+- **Never in the repo**: `.gitignore` covers `tts.env` / `*.env` / `*.key` / `*.pem` / `secrets/`;
+  the repo self-check has a dedicated **key-defence** rule, itself proven by a negative test —
+  a deliberately planted fake key gets caught.
+- **Never in logs**: error messages are redacted — only the key value actually used and `AKLT…`
+  tokens are scrubbed. Deliberately **not** a broad "any long string is a secret" rule, which would
+  also erase the request IDs you need for support.
+- **Never in a distribution**: packaging the skill excludes key files.
+- **Backstop** (the real security boundary): if it leaks anyway, keep the blast radius small — use
+  a **sub-account with speech-synthesis-only permission**, set **usage alerts and quotas**, and
+  **rotate** the key.
+
+> Bluntly: the synthesis code runs on your machine, so the key is visible to that process at
+> runtime — **"the agent can never read it" is not achievable**. What is guaranteed is *not in the
+> chat, not in the repo, not in the logs, not in the distribution*, which shrinks a leak into one
+> revocable incident.
+>
+> Also **don't store the key in an environment variable** — many hosts dump the process environment
+> straight into the session transcript.
+
+**Don't rename `tts.env.example` to `tts.env` and fill that in.** It is the template meant to stay
+in the repo; renaming it leaves everyone else without one (the repo self-check reports it).
+Copy it, then fill the copy.
 
 ---
 
@@ -161,7 +236,9 @@ The trade-off: **every animation must be seekable.** Wall-clock animation (`setI
 | | |
 |---|---|
 | **Beats anchored to narration** | Scenes position animation by **matching subtitle text** (`B('block text')`), never by hardcoded frame numbers. Edit the script and the whole video re-times with zero scene-code changes. |
-| **Word-boundary subtitles** | Timing comes from edge-tts `WordBoundary` events, never interpolated by character count — in Chinese two phrases of equal length can differ 3× in duration. |
+| **Word-boundary subtitles** | Timing comes from the TTS engine's **character-level timestamps**, never interpolated by character count — in Chinese two phrases of equal length can differ 3× in duration. `WordBoundary` for edge-tts, `sentence.words[]` for Volcano Engine. |
+| **Two voiceover engines** | `edge-tts` (free, no key, default) or **Volcano Engine TTS 2.0** (better quality, needs an API key). Both emit an identical manifest, so nothing downstream changes — switch with `--provider`. |
+| **The API key never reaches the agent or the repo** | The Volcano key lives only in `tts.env` (gitignored) and **only the interface package reads it** — the agent calls `tts_volcano.py` and never needs the key. Errors are redacted, `check_integrity.py` enforces a secret guard, and packaging excludes key files. |
 | **Two-level clock** | Frame length uses MP3 **container duration** (keeps A/V in sync); the final subtitle block ends on **actual speech end**. |
 | **23 visual styles** | 8 categories, each with its canvas, type scale, timeline and colour discipline recorded. No designing from a blank page. |
 | **Dual covers** | Every video ships a 16:9 cover plus an **independently re-laid-out** 3:4 cover — not a crop. Cropping loses 57.8% of the width. |
@@ -176,7 +253,8 @@ The trade-off: **every animation must be seekable.** Wall-clock animation (`setI
 flowchart LR
     A["Topic"] --> B["Research<br/><i>every figure sourced</i>"]
     B --> C["narration.json<br/><i>pipes split subtitle blocks</i>"]
-    C --> D["tts_build.py<br/><i>edge-tts to MP3 + word boundaries</i>"]
+    C --> S["tts_setup.py<br/><i>ask engine · key · voice</i>"]
+    S --> D["tts_build.py<br/><i>edge-tts / Volcano to MP3 + word boundaries</i>"]
     D --> E["timeline_build.py<br/><i>global axis + stitched track</i>"]
     E --> F["subs.py<br/><i>subs.json, srt/vtt, beats.js</i>"]
     F --> G["frames/*.html<br/><i>one scene per line, styled from the library</i>"]
@@ -266,8 +344,13 @@ rules and the pre-upload checklist: [`references/cover-guide.md`](references/cov
 | Cover renders at 1× | Same trap, `deviceScaleFactor` twin | Pass to `newPage()` + `screenshot({ scale: 'device' })` |
 | Numbers render but never move | The seek suppressed `onUpdate` callbacks | Renderer fixed (`pause(t, false)`); use a transform-based number reel in scenes |
 | `No such file or directory` on Windows | Non-ASCII path — Windows ffmpeg reads UTF-8 as ANSI | Keep paths ASCII |
+| Subtitles drift / land in the wrong place | TTS returned no word timestamps, so `subs.py` fell back to **character-count interpolation** (a single stderr warning) | Check whether `tts_build` printed `⚠ no word timestamps`; switch to a supported voice (zh/en Doubao 2.0) |
+| Volcano error `resource ID is mismatched with speaker related resource` | `speaker` got a display name instead of a voice ID; or a cloned voice paired with the preset resource ID | Use a built-in voice name/ID (the package resolves it); for cloned voices set `VOLC_RESOURCE_ID=seed-icl-2.0` |
+| Volcano `HTTP 401/403` | Wrong key in `tts.env`, or the service is not enabled | Verify `VOLC_API_KEY`; check the masked status via `tts_setup.py --status` |
+| Volcano `network unreachable` | The package **bypasses the system proxy by default** (China-mainland endpoint) | If you really need a proxy, set `VOLC_PROXY=http://127.0.0.1:<port>` |
+| Subtitles sit one frame late after a re-run | A cache hit dropped the head-trim amount (historical bug, fixed) | Upgrade to v1.3.0+; the cache format now carries `lead_cut_sec` |
 
-**`references/lessons.md` is the most valuable file in this repository.** 34 numbered entries, each
+**`references/lessons.md` is the most valuable file in this repository.** 56 numbered entries, each
 one a bug where "the video looked fine but was wrong" — including how it was misdiagnosed at first.
 Read it before debugging from scratch.
 

@@ -1,7 +1,7 @@
 ---
 name: html-explainer
-version: 1.2.3
-description: 把任意主题做成「讲解/科普视频」并渲染成 MP4：调研→审查→解说词→字幕→edge-tts 配音→并行构建 HTML 场景→确定性逐帧渲染→成片后出双方案封面。**画面语言内置 23 个模板风格 / 8 个类别**（大胆信号卡、奢华极简、NYT 数据图表、瑞士网格、故障艺术、胶片漏光、流体 Hero、Logo 收尾、东方柔和有机、VFX 文字光标…共 23 种风格，含每种的画布/配色/字体/时间轴规范，见 references/style-catalog.md），流程规范与音画同步体系承自 anything2explainer（词边界字幕、两级时钟、语速标定、多 agent 分工与 QC 判据），渲染层为自研 seek 式渲染器。**封面双方案**：抖音主封面 1920×1080 + 兼容 3:4 的 1440×1080（独立重排，防主页栅格切字）。独立可移植：GSAP 内置、playwright-core 随包、ffmpeg 走 imageio-ffmpeg 回退、浏览器自动探测 Chrome/Edge；**不依赖 html-video / anything2explainer 任何代码或目录**。触发场景：要做科普/讲解/教学/知识/产品类视频、"讲一下 X 做成视频"、要用 html-video 那种模板化画面但更稳的音画同步、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面、anything2explainer 换 HTML 渲染、或提到 html-explainer / HTML 讲解视频 / explainer video / MG 视频。
+version: 1.3.0
+description: 把任意主题做成「讲解/科普视频」并渲染成 MP4：调研→审查→解说词→字幕→配音（edge-tts，或火山引擎语音合成 2.0）→并行构建 HTML 场景→确定性逐帧渲染→成片后出双方案封面。**画面语言内置 23 个模板风格 / 8 个类别**（大胆信号卡、奢华极简、NYT 数据图表、瑞士网格、故障艺术、胶片漏光、流体 Hero、Logo 收尾、东方柔和有机、VFX 文字光标…共 23 种风格，含每种的画布/配色/字体/时间轴规范，见 references/style-catalog.md），流程规范与音画同步体系承自 anything2explainer（词边界字幕、两级时钟、语速标定、多 agent 分工与 QC 判据），渲染层为自研 seek 式渲染器。**封面双方案**：抖音主封面 1920×1080 + 兼容 3:4 的 1440×1080（独立重排，防主页栅格切字）。独立可移植：GSAP 内置、playwright-core 随包、ffmpeg 走 imageio-ffmpeg 回退、浏览器自动探测 Chrome/Edge；**不依赖 html-video / anything2explainer 任何代码或目录**。触发场景：要做科普/讲解/教学/知识/产品类视频、"讲一下 X 做成视频"、要用 html-video 那种模板化画面但更稳的音画同步、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面、anything2explainer 换 HTML 渲染、或提到 html-explainer / HTML 讲解视频 / explainer video / MG 视频。
 agent_created: true
 ---
 
@@ -59,6 +59,7 @@ bash <skill>/setup_env.sh            # 自检；--install 联网补装
 ```
 
 依赖：Python≥3.9（edge-tts==7.2.8 钉死 / numpy / pillow / imageio-ffmpeg）、Node≥18、
+**火山引擎零额外依赖**（`tts_volcano.py` 只用标准库 `urllib`，不需要装任何 SDK）。
 Chrome 或 Edge（几乎必有；都没有才下载 playwright chromium ~115MB）、ffmpeg（PATH 或
 imageio-ffmpeg 静态二进制自动回退）。Windows 注意：项目路径全 ASCII；给 Node/Python
 传 `C:/...` 正斜杠路径；别用 heredoc 给 Python 传正则。
@@ -68,6 +69,7 @@ imageio-ffmpeg 静态二进制自动回退）。Windows 注意：项目路径全
 ```bash
 PY=<venv python 绝对路径>          # 派子 agent 时必须展开成绝对路径写进 prompt
 "$PY" <skill>/scripts/new_project.py <dir> <slug> --topic "主题"   # 阶段 0 建项目
+"$PY" <skill>/scripts/tts_setup.py      --project .   # ★ 先定配音方案 + 音色（问用户：edge / 火山）
 "$PY" <skill>/scripts/tts_build.py      --project .   # 配音：audio/*.mp3 + manifest
 "$PY" <skill>/scripts/timeline_build.py --project .   # 全局时间轴：layout.json + narration-full.mp3
 "$PY" <skill>/scripts/subs.py           --project .   # 字幕：subs.json + beats.js + srt/vtt
@@ -76,6 +78,12 @@ node <skill>/scripts/render_video.mjs   . [--preview 30] [--keep-frames] [--only
 "$PY" <skill>/scripts/qc_check.py       --project .   # 体检 + 抽帧速览图
 node <skill>/scripts/cover_build.mjs    .             # 封面双方案：out/cover_169.png + cover_34.png
 ```
+
+配音引擎（**跑之前必须先问用户**，见确认点 3）：`edge`（默认，免费免密钥）或
+`volcano`（火山引擎语音合成 2.0，音质更好，需 API Key）。两者产出的 manifest 结构一致，
+下游零改动。切换：`--provider edge|volcano` 或 `TTS_PROVIDER` 环境变量。
+**火山密钥只存 `tts.env`（已 gitignore）—— agent 只调 `tts_volcano.py`，不读该文件。**
+详见 `references/volcano-tts.md`。
 
 辅助工具（随时可用，不进主流水线）：
 
@@ -129,7 +137,7 @@ node <skill>/scripts/peek_frame.mjs . <帧id> --at 40,80    # 单帧速览：秒
 |---|---|
 | 帧时长 | MP3 **容器时长**（tts_build 裁首尾静音后回填）。词边界时长每段少 ~0.86s，用它必错位 |
 | 末块字幕收尾 | 语音**真实结束**（speech_end_sec）—— 两级时钟，混用则「字幕过了语音还没过」 |
-| 字幕节拍 | edge-tts **WordBoundary** 首字对帧号，绝不按字数插值（中文同字数时长差 3 倍） |
+| 字幕节拍 | 词级时间戳首字对帧号，绝不按字数插值（中文同字数时长差 3 倍）。edge 取 `WordBoundary`，火山取 `sentence.words[]`（**需显式开 `audio_params.enable_subtitle`，本包默认开**；不开会静默退回插值） |
 | 画面节拍 | 场景 HTML 里 `B('块文本')` 取该词起播秒排 GSAP —— 画面与吐字同源 |
 | 渲染 | **确定性 seek**：`tl.pause(t, false)` + CSS 动画 `currentTime=t×1000` → 截图 → ffmpeg 合成。无实时录制，html-video 的引导期/起播/字体坑整类不存在。**第二参必须传 `false`**，少了它 `onUpdate` 类回调被静默抑制（数字滚动恒为初值，见 lessons #27） |
 | 字幕层/进度条 | 渲染器注入并逐帧驱动（`#mg-subs` 44px 白字黑边 bottom 96px；`#mg-progress` accent 填充），帧作者零负担 |
@@ -140,7 +148,17 @@ node <skill>/scripts/peek_frame.mjs . <帧id> --at 40,80    # 单帧速览：秒
 
 0. **建项目**（5 分钟）：`new_project.py` + 定主题（`make_theme.py --topic/--preset … --use`，颜色全在 theme.css 的 CSS 变量里，画面代码禁止色值字面量）
 1. **调研**（20 分钟，1 agent）：research/调研.md，每个数字带 URL；**确认点 1**（时长/语言）并行问
-2. **解说词**（30 分钟）：narration.json（`|` 切字幕块，中文 ≤16 字/块）→ 填 order → **确认点 2**（文案定稿）→ **确认点 3**（TTS 偏好）→ tts/timeline/subs 三连 → 核对时长区间（差 >15% 改句子，别改语速硬凑）→ **定稿后不改词**
+2. **解说词**（30 分钟）：narration.json（`|` 切字幕块，中文 ≤16 字/块）→ 填 order → **确认点 2**（文案定稿）→ **确认点 3**（配音方案 + 音色）→ tts/timeline/subs 三连 → 核对时长区间（差 >15% 改句子，别改语速硬凑）→ **定稿后不改词**
+
+   **确认点 3 必须问两件事**（用 `tts_setup.py` 落实）：
+   ① **方案** —— 「配音用 edge-tts（免费、免密钥、开箱可用）还是火山引擎语音合成 2.0
+     （音质更好，需要 API Key，约 1 分钟配置）」；
+   ② **音色** —— 选定方案后列候选让用户挑，也可自定义 ID。
+   选火山时：缺 `tts.env` → `tts_setup.py` 生成空模板并**停下来**，让用户手工填密钥
+   （**agent 不读该文件、不参与填值**）；用户说填好了 → `--check` 测连接 → 再选音色。
+   ★ 提醒用户用 `cp tts.env.example tts.env` **复制**，别把 `tts.env.example` **改名**成
+   `tts.env` —— 那是要留在仓库里的模板（改名会让 `check_integrity.py` 报错）。
+   详见 `references/volcano-tts.md`。
 3. **分镜（含选风格，20 分钟）**：script/storyboard.md，每场景一行 ——
    **先从风格库挑风格**（`references/style-catalog.md`，按「挑风格的实用建议」表匹配内容类型，
    并核对时长档），再写画面/主角·尺寸/光/B() 锚点；末尾全局约束
@@ -185,7 +203,9 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 | 路径 | 作用 |
 |---|---|
 | `scripts/new_project.py` | 阶段 0 脚手架：建目录树 + `project.json` + `narration.json` 占位 + `theme.css` + 两份封面 HTML |
-| `scripts/tts_build.py` | edge-tts：缓存/超时/重试/裁静音，manifest 写两级时长 |
+| `scripts/tts_setup.py` | **配音方案向导**：选 edge/火山 → 缺密钥则生成 `tts.env` 模板并停下 → 测连接 → 选音色 → 写回 project.json。输出 `NEXT_ACTION=…` 供 agent 判断下一步 |
+| `scripts/tts_volcano.py` | **火山引擎语音合成 2.0 接口包**：唯一读 `tts.env` 的地方；`--check` / `--voices` / `--synth`。密钥不回显、异常脱敏（`_redact`） |
+| `scripts/tts_build.py` | 配音合成：edge-tts **或** 火山引擎（`--provider`）；缓存/硬超时/退避重试/裁静音，manifest 写两级时长。两引擎 manifest 结构一致 |
 | `scripts/timeline_build.py` | layout.json 全局轴 + narration-full.mp3（gap 显式插入） |
 | `scripts/subs.py` | 字幕三出口（subs.json / srt+vtt / 画面内层由渲染器注入）+ beats.js 节拍器 |
 | `scripts/lint_frames.py` | **渲染前静态体检**：八条契约违规逐条报（外链字体/色值字面量/墙钟/`B()\|\|N`/字幕带压内容/缺中文字体族…） |

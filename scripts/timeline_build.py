@@ -54,6 +54,14 @@ def main() -> int:
     order = pj.get("order") or []
     gap = args.gap if args.gap >= 0 else float(pj.get("gap", 0.35))
 
+    if not order:
+        # 不拦这一下的话，下游 ffmpeg 会报 `Failed to set value ';concat=n=0:...'`
+        # —— 看不出根因在哪。直接说清楚该改哪个文件的哪个字段。
+        print("✗ project.json 的 order 是空的 —— 它是场景顺序表，先填上再跑。\n"
+              "  形如：\"order\": [\"intro\", \"point1\", \"ending\"]（= narration.json 里 id 的顺序）",
+              file=sys.stderr)
+        return 1
+
     man_path = os.path.join(proj, "audio-manifest.json")
     if not os.path.exists(man_path):
         print("✗ 先跑 tts_build.py（缺 audio-manifest.json）", file=sys.stderr)
