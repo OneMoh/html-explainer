@@ -62,6 +62,10 @@ function parseArgs(argv) {
     else if (t === '--fps') a.fps = parseFloat(argv[++i]);
     else if (t === '--concurrency') a.concurrency = parseInt(argv[++i], 10);
     else if (t === '--jpeg') a.jpeg = true;
+    else if (t === '--jpeg-quality') a.jpegQuality = parseInt(argv[++i], 10);
+    else if (t === '--png-fast') a.pngFast = true;
+    else if (t === '--crf') a.crf = parseInt(argv[++i], 10);
+    else if (t === '--preset') a.preset = argv[++i];
     else if (t === '--scale') a.scale = parseFloat(argv[++i]);
     else if (t === '--keep-frames') a.keepFrames = true;
     else if (t === '--mux-only') a.muxOnly = true;
@@ -214,6 +218,32 @@ const frameSeek = async (o) => {
   return tl.time();
 };
 
+// ---------- 截图：三种模式（这一层是本渲染器最容易踩的性能坑） ----------
+// PNG（playwright 默认）对**照片满幅帧**极慢：实测 1920×1080 照片帧 582ms/张，
+// 而纯色帧只要 45ms —— 差 13 倍。因为 PNG 是无损 deflate，高熵照片内容既压不小
+// 也压不快，且这段编码在**浏览器进程内串行**：并发 1/3/6 路实测总吞吐
+// 1.80 / 1.86 / 1.87 帧/秒 —— 挂并发等于白挂，`--concurrency` 对帧数毫无帮助。
+//   ★ --png-fast：走 CDP 的 optimizeForSpeed（zlib 最快档、不做自适应滤波），
+//     实测 132ms/张，仍是**逐像素无损**（对 playwright PNG：PSNR 99dB、最大差 0），
+//     代价是体积 +22%。照片多的片子选它。
+//   ★ --jpeg：q82 41ms/张（13×）；q95 52ms/张，PSNR 41.7dB（已低于 x264 crf18
+//     自身的失真水平，成片看不出），体积仅 1/5。要极致速度就它。
+async function captureFrame({ page, cdp, outPath, args, W, H }) {
+  if (cdp) {
+    const opts = { format: 'png', optimizeForSpeed: true, captureBeyondViewport: false };
+    const sc = args.scale || 1;
+    if (sc !== 1) opts.clip = { x: 0, y: 0, width: W, height: H, scale: sc };
+    const r = await cdp.send('Page.captureScreenshot', opts);
+    fs.writeFileSync(outPath, Buffer.from(r.data, 'base64'));
+    return;
+  }
+  await page.screenshot({
+    path: outPath,
+    type: args.jpeg ? 'jpeg' : 'png',
+    quality: args.jpeg ? (args.jpegQuality || 82) : undefined,
+  });
+}
+
 // ---------- 主流程 ----------
 async function main() {
   const args = parseArgs(process.argv.slice(2));
@@ -283,7 +313,9 @@ async function main() {
 
   log(`项目：${projectDir}`);
   log(`场景 ${scenes.length} 个 · 总时长 ${renderSec.toFixed(2)}s · ${totalFrames} 帧 @${fps}fps`);
-  log(`画布 ${W}x${H} · ${args.jpeg ? 'JPEG 草稿模式' : 'PNG 精细模式'} · 并发 ${args.concurrency || 3}`);
+  const shotMode = args.pngFast ? 'PNG 速度优先（CDP，无损）'
+    : args.jpeg ? `JPEG q${args.jpegQuality || 82}` : 'PNG 精细模式';
+  log(`画布 ${W}x${H} · ${shotMode} · 并发 ${args.concurrency || 3}`);
 
   let browser = null;
   if (!args.muxOnly) {
@@ -309,6 +341,8 @@ async function main() {
   async function renderScene(sc) {
     // ★ viewport 必须逐 page 指定（launch 的 viewport 不继承到 newPage）
     const page = await browser.newPage({ viewport: { width: W, height: H } });
+    // --png-fast：走 CDP 截图（见 captureFrame 注释）
+    const cdp = args.pngFast ? await page.context().newCDPSession(page) : null;
     const htmlPath = path.join(projectDir, 'frames', `${sc.id}.html`);
     try {
       // __MG_RENDER__ 必须在任何页面脚本之前置位（帧据此跳过自动起播）
@@ -350,7 +384,7 @@ async function main() {
         const globalT = sc.globalStart + t;
         await page.evaluate(frameSeek, { t, globalT, total: renderSec });
         const framePath = path.join(framesDir, `f_${String(sc.gf + i + 1).padStart(6, '0')}.${args.jpeg ? 'jpg' : 'png'}`);
-        await page.screenshot({ path: framePath, type: args.jpeg ? 'jpeg' : 'png', quality: args.jpeg ? 82 : undefined });
+        await captureFrame({ page, cdp, outPath: framePath, args, W, H });
         doneFrames++;
         if (doneFrames % 300 === 0)
           log(`进度 ${doneFrames}/${totalFrames} 帧 · ${(doneFrames / ((Date.now() - t0) / 1000)).toFixed(1)} 帧/秒`);
@@ -398,11 +432,16 @@ async function main() {
     '-framerate', String(fps), '-i', path.join(framesDir, `f_%06d.${ext}`),
   ];
   if (hasAudio) cmd.push('-i', audioPath);
+  // 中间帧格式与最终编码质量**解耦**：--jpeg 只换帧容器，不代表要降码率。
+  // （旧行为里 --jpeg 连带降成 crf23/veryfast，是"草稿"语义；成片用 --crf 18 覆盖。）
+  const crf = args.crf != null ? args.crf : (args.jpeg ? 23 : 18);
+  const preset = args.preset || (args.jpeg ? 'veryfast' : 'medium');
   cmd.push(
-    '-c:v', 'libx264', '-preset', args.jpeg ? 'veryfast' : 'medium',
-    '-crf', args.jpeg ? '23' : '18', '-pix_fmt', 'yuv420p',
+    '-c:v', 'libx264', '-preset', preset,
+    '-crf', String(crf), '-pix_fmt', 'yuv420p',
     '-movflags', '+faststart',
   );
+  log(`编码：libx264 · preset ${preset} · crf ${crf}`);
   if (hasAudio) {
     cmd.push('-c:a', 'aac', '-b:a', '160k');
     // 音轨短于视频时补静音，而不是用 -shortest 砍掉视频尾部。

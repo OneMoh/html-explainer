@@ -433,6 +433,13 @@ def synthesize(text: str, voice: str = DEFAULT_VOICE, rate: int = 0,
     text = (text or "").strip()
     if not text:
         raise VolcanoTTSError("文本为空")
+    # ★ 音色解析必须在这里再兜一次：`speaker` 字段只认 ID，
+    #   而 project.json 里存的是显示名（如「解说小明 2.0」）。
+    #   CLI 路径调过 resolve_voice_token，但 tts_build.py 是直接把 project.json 的
+    #   voice 传进来的 —— 少这一步就会拿到服务端的
+    #   `55000000 resource ID is mismatched with speaker related resource`，
+    #   报错信息完全看不出是「名字没解析」（2026-09-23 实测踩到）。
+    voice = resolve_voice_token(voice, DEFAULT_VOICE)
     cred = load_credentials(project_dir)
 
     last: Exception | None = None

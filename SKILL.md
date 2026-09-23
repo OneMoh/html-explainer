@@ -1,6 +1,6 @@
 ---
 name: html-explainer
-version: 1.3.0
+version: 1.3.1
 description: 把任意主题做成「讲解/科普视频」并渲染成 MP4：调研→审查→解说词→字幕→配音（edge-tts，或火山引擎语音合成 2.0）→并行构建 HTML 场景→确定性逐帧渲染→成片后出双方案封面。**画面语言内置 23 个模板风格 / 8 个类别**（大胆信号卡、奢华极简、NYT 数据图表、瑞士网格、故障艺术、胶片漏光、流体 Hero、Logo 收尾、东方柔和有机、VFX 文字光标…共 23 种风格，含每种的画布/配色/字体/时间轴规范，见 references/style-catalog.md），流程规范与音画同步体系承自 anything2explainer（词边界字幕、两级时钟、语速标定、多 agent 分工与 QC 判据），渲染层为自研 seek 式渲染器。**封面双方案**：抖音主封面 1920×1080 + 兼容 3:4 的 1440×1080（独立重排，防主页栅格切字）。独立可移植：GSAP 内置、playwright-core 随包、ffmpeg 走 imageio-ffmpeg 回退、浏览器自动探测 Chrome/Edge；**不依赖 html-video / anything2explainer 任何代码或目录**。触发场景：要做科普/讲解/教学/知识/产品类视频、"讲一下 X 做成视频"、要用 html-video 那种模板化画面但更稳的音画同步、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面、anything2explainer 换 HTML 渲染、或提到 html-explainer / HTML 讲解视频 / explainer video / MG 视频。
 agent_created: true
 ---
@@ -74,7 +74,7 @@ PY=<venv python 绝对路径>          # 派子 agent 时必须展开成绝对�
 "$PY" <skill>/scripts/timeline_build.py --project .   # 全局时间轴：layout.json + narration-full.mp3
 "$PY" <skill>/scripts/subs.py           --project .   # 字幕：subs.json + beats.js + srt/vtt
 "$PY" <skill>/scripts/lint_frames.py    --project .   # 静态体检：八条契约违规（渲染前一秒出结果，比渲完再发现便宜得多）
-node <skill>/scripts/render_video.mjs   . [--preview 30] [--keep-frames] [--only <场景id>] [--mux-only]   # 渲染：out/<slug>.mp4
+node <skill>/scripts/render_video.mjs   . [--preview 30] [--keep-frames] [--only <场景id>] [--mux-only] [--png-fast|--jpeg] [--concurrency N]   # 渲染：out/<slug>.mp4
 "$PY" <skill>/scripts/qc_check.py       --project .   # 体检 + 抽帧速览图
 node <skill>/scripts/cover_build.mjs    .             # 封面双方案：out/cover_169.png + cover_34.png
 ```
@@ -84,6 +84,15 @@ node <skill>/scripts/cover_build.mjs    .             # 封面双方案：out/co
 下游零改动。切换：`--provider edge|volcano` 或 `TTS_PROVIDER` 环境变量。
 **火山密钥只存 `tts.env`（已 gitignore）—— agent 只调 `tts_volcano.py`，不读该文件。**
 详见 `references/volcano-tts.md`。
+
+渲染截图模式（**画面里有满幅照片时务必换掉默认 PNG**，见 `lessons.md` 第 69 条）：
+默认 PNG 对纯 CSS 图形帧很快（45ms/帧），但**对照片满幅帧是 582ms/帧（13×），
+且编码在浏览器进程内串行 —— 加 `--concurrency` 完全无效**（实测并发 1/3/6 路的总吞吐
+1.80 / 1.86 / 1.87 帧/秒）。照片类片子选：
+
+- `--png-fast`：CDP `optimizeForSpeed`，**逐像素无损**、4.4× 加速（132ms/帧，体积 +22%）。
+- `--jpeg --jpeg-quality 95 --crf 18 --preset medium`：13× 加速、体积 1/5；
+  q95 = PSNR 41.65dB，已低于 x264 crf18 自身的失真，成片看不出。
 
 辅助工具（随时可用，不进主流水线）：
 
@@ -209,7 +218,7 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 | `scripts/timeline_build.py` | layout.json 全局轴 + narration-full.mp3（gap 显式插入） |
 | `scripts/subs.py` | 字幕三出口（subs.json / srt+vtt / 画面内层由渲染器注入）+ beats.js 节拍器 |
 | `scripts/lint_frames.py` | **渲染前静态体检**：八条契约违规逐条报（外链字体/色值字面量/墙钟/`B()\|\|N`/字幕带压内容/缺中文字体族…） |
-| `scripts/render_video.mjs` | 渲染器：浏览器探测 → 逐场景 seek 截图 → ffmpeg 合成；`--preview N` 快样片，`--jpeg` 草稿模式，`--only <场景id>` 只重渲指定场景（**仅末场安全**，变短后须清尾部过期帧，见 lessons 45），`--mux-only` 用现有帧重新合成 |
+| `scripts/render_video.mjs` | 渲染器：浏览器探测 → 逐场景 seek 截图 → ffmpeg 合成；`--preview N` 快样片，`--only <场景id>` 只重渲指定场景（**仅末场安全**，变短后须清尾部过期帧，见 lessons 45），`--mux-only` 用现有帧重新合成；**帧里有满幅照片就必须换截图模式**（默认 PNG 编码占 96% 帧时间且与并发无关）：`--png-fast` 无损 4.4×，`--jpeg --jpeg-quality 95` 13×；`--crf N` / `--preset <名>` 单独控制成片码率 |
 | `scripts/qc_check.py` | 流/时长/音量/抽帧体检 + contact sheet |
 | `scripts/cover_build.mjs` | 封面双方案渲染器：`width=1920/1440` 两份独立排版 → 2 倍图；`--at` / `--only` / `--jpg` |
 

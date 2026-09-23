@@ -60,6 +60,26 @@ def mean_volume(ff, path):
     return None
 
 
+def count_video_frames(ff, path):
+    """实测**视频流真实帧数**。
+
+    为什么不能只看 Duration：容器时长会被音轨撑起来。若帧序列中间有缺口，
+    ffmpeg 的 image2 序列会在缺口处停下、**退出码仍是 0**，于是视频流只有前半段，
+    而容器 Duration 依旧显示完整长度 —— 这个假通过真的发生过，见 lessons #57。
+    """
+    r = subprocess.run([ff, "-hide_banner", "-i", path,
+                        "-map", "0:v:0", "-c", "copy", "-f", "null", "-"],
+                       capture_output=True, text=True, errors="replace")
+    n = None
+    for line in r.stderr.splitlines():
+        if line.startswith("frame="):
+            try:
+                n = int(line.split("frame=")[1].strip().split()[0])
+            except (IndexError, ValueError):
+                pass
+    return n
+
+
 def extract_frame(ff, video, sec, out_png):
     r = subprocess.run([ff, "-hide_banner", "-loglevel", "error", "-y",
                         "-i", video, "-ss", f"{sec:.3f}", "-frames:v", "1", out_png],
@@ -116,6 +136,25 @@ def main() -> int:
             fails.append(f"成片与期望时长差 {d:.2f}s（>0.5s）—— 查帧时长口径是否用了容器时长")
         else:
             report.append(f"- ✓ 与期望差 {d:.2f}s")
+
+        # ★ 帧数实测（Duration 会被音轨撑大，掩盖视频流被截断 —— 见 lessons #57）
+        exp_frames = expect.get("total_frames")
+        if exp_frames:
+            got = count_video_frames(ff, video)
+            if got is None:
+                warns.append("无法实测视频流帧数（跳过帧数校验）")
+            elif int(got) != int(exp_frames):
+                fails.append(
+                    f"成片实测 {got} 帧 ≠ layout 期望 {exp_frames} 帧 —— 视频流被截断。"
+                    f"注意容器时长仍会显示正常，别被它骗了（见 lessons #57）。"
+                    f"先量帧序列有没有缺口："
+                    f"`ls render/frames/ | sed 's/f_0*\\([0-9]*\\)\\.png/\\1/' | awk "
+                    f"'NR==1{{p=$1-1}} {{if($1!=p+1) print \"缺口: \"p\" -> \"$1; p=$1}} "
+                    f"END{{print \"末帧: \"p}}'`；"
+                    f"有缺口就 `cp f_<洞后一帧>.png f_<洞帧>.png` 补齐，再 --mux-only")
+                report.append(f"- ✗ 实测视频流 {got} 帧 / 期望 {exp_frames} 帧 —— 被截断")
+            else:
+                report.append(f"- ✓ 实测视频流 {got} 帧 = 期望 {exp_frames} 帧")
     if os.path.exists(audio):
         adur, _, _ = probe(ff, audio)
         # 有符号差：正数 = 成片比音轨长。layout 的 video_duration 比音轨多出

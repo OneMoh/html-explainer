@@ -338,7 +338,10 @@ async def run(args) -> int:
         return 1
 
     if provider == "volcano":
-        voice = args.voice or pj.get("voice") or tts_volcano.DEFAULT_VOICE
+        # project.json 里存的是显示名（「解说小明 2.0」），但 speaker 字段只认 ID。
+        # 在入口就解析成 ID，后面日志/清单里也就是可直接复制的真 ID。
+        voice = tts_volcano.resolve_voice_token(
+            args.voice or pj.get("voice") or "", tts_volcano.DEFAULT_VOICE)
         rate = args.rate or pj.get("rate") or 0
     else:
         voice = args.voice or pj.get("voice") or DEFAULT_VOICE_ZH

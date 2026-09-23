@@ -9,6 +9,61 @@
 
 ---
 
+## [1.3.1] — 2026-09-23
+
+### 修复
+
+- **★ `tts_build.py` 走火山引擎时，`project.json` 里的中文音色名没被解析成音色 ID，
+  合成恒失败。** 症状是服务端返回
+  `code=55000000 message='resource ID is mismatched with speaker related resource'`，
+  报错信息完全看不出是「名字没解析」。
+  根因：`resolve_voice_token()` 只在 `tts_setup.py` / `tts_volcano.py` 的 CLI 路径被调用，
+  `tts_build.py` 是把 `project.json` 的 `voice`（如 `解说小明 2.0`）**原样**透传给
+  `tts_volcano.synthesize()` 的，而 `speaker` 字段只认 ID。
+  修法（两层，任一层都能挡住）：
+  1. `tts_volcano.synthesize()` 入口处补 `voice = resolve_voice_token(voice, DEFAULT_VOICE)`
+     —— 接口包是唯一知道音色表的地方，任何调用方都不该自己解析；
+  2. `tts_build.py` 读 `project.json` 后先解析一次，让日志与 `audio-manifest.json`
+     里记的是可直接复制的真 ID。
+
+  > 教训：**「文档里写了有这一步」不等于「每条代码路径都有这一步」。**
+  > `references/volcano-tts.md` 当时已写明「音色名解析走 `resolve_voice_token()`」，
+  > 但那条路径实际没被接上 —— 光看文档会误判成「密钥/账号没开通音色」，
+  > 于是去逐个测音色（实测 7 个 2.0 音色全都可合成），白绕一圈。
+
+### 新增
+
+- **★ 逐帧截图模式可选，照片类片子提速 5–13 倍。** 起因是一条全片满幅照片的片子
+  实测只有 **1.93 帧/秒**（9356 帧要 84 分钟）。逐项拆解后发现瓶颈根本不在 seek
+  （只占 21ms/帧），而在 **PNG 编码（561ms，占 96%）**，且**与画面内容强相关**：
+  纯色/纯 CSS 图形帧只要 45ms，照片满幅帧要 582ms（13×）—— 这就是「CSS 类项目
+  几百帧/分钟、照片类项目掉到 1.9 帧/秒」这个量级差的全部原因。
+  更关键的是**这段编码在浏览器进程内串行**：并发 1/3/6 路的总吞吐实测
+  1.80 / 1.86 / 1.87 帧/秒 —— `--concurrency` 对帧数毫无帮助。
+
+  | 截图方式 | 单页 | 3 页并发 | 体积/帧 | 对无损基准 |
+  |---|---|---|---|---|
+  | Playwright PNG（默认，未变） | 1.80 帧/秒 | 1.86 | 2.5MB | 无损 |
+  | **`--png-fast`**（CDP `optimizeForSpeed`） | 7.36 | 10.45 | 3.0MB | **无损**（PSNR 99dB、最大差 0） |
+  | **`--jpeg --jpeg-quality 95`** | 16.07 | 29.01（5 路 32.3） | 0.54MB | PSNR 41.65dB |
+
+  新增开关（**默认行为完全不变**）：`--png-fast`、`--jpeg-quality N`（默认 82）、
+  `--crf N`、`--preset <名>`。其中 `--crf`/`--preset` 顺带把「帧容器」与「成片码率」解耦 ——
+  旧行为里 `--jpeg` 会连带降成 `crf23/veryfast`（那是"草稿"语义），
+  成片现在可以显式给 `--crf 18 --preset medium`。
+
+  选用判据（已写进 `SKILL.md` 与 `references/workflow-guide.md`）：
+  **帧里有满幅照片 → 换模式；`--png-fast` 要无损，`--jpeg --jpeg-quality 95` 要速度。**
+
+- **`qc_check.py` 新增「实测视频流帧数」校验。** 原先只比容器时长，而容器时长会被音轨撑起来：
+  帧序列中间若有缺口，ffmpeg 的 image2 序列会在缺口处**停下且退出码仍是 0**，
+  视频流只有前半段，Duration 却照常显示完整长度（假通过，见 `lessons.md` #57）。
+  现在用 `-map 0:v:0 -f null -` 数真实帧数，与 `layout.json` 的 `total_frames` 比对；
+  不一致直接判 fail，并在报错里附上「找帧序列缺口 → 补齐 → `--mux-only`」的命令。
+- `tts_build.py` 的日志与清单现在打印/记录**解析后的音色 ID**，便于直接对照官方文档排错。
+
+---
+
 ## [1.3.0] — 2026-09-23
 
 ### 新增
@@ -232,6 +287,7 @@
 - 23 种画面风格目录，8 个类别，按改编成本分类。
 - `setup_env.sh` 做首次环境自检，`--install` 装缺失依赖；`package_skill.py` 打可移植 zip。
 
+[1.3.1]: https://github.com/OneMoh/html-explainer/releases/tag/v1.3.1
 [1.3.0]: https://github.com/OneMoh/html-explainer/releases/tag/v1.3.0
 [1.2.3]: https://github.com/OneMoh/html-explainer/releases/tag/v1.2.3
 [1.2.2]: https://github.com/OneMoh/html-explainer/releases/tag/v1.2.2

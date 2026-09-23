@@ -188,6 +188,7 @@ Body:   {user:{uid}, req_params:{text, speaker, audio_params:{format,sample_rate
 |---|---|
 | `没有找到 tts.env` | 跑 `tts_setup.py --project .` 生成模板后填写 |
 | `HTTP 401` / `Invalid X-Api-Key` | 密钥错、未开通服务，或该用旧版鉴权（填 `VOLC_APP_ID` + `VOLC_ACCESS_KEY`） |
+| `55000000 resource ID is mismatched with speaker related resource` | ① **音色名没被解析成 ID**（`speaker` 只认 ID；1.3.1 前 `tts_build.py` 走了未解析的路径，已修）② 音色与资源 ID 不匹配（预置音色要配 `seed-tts-2.0`）③ 该音色未在控制台开通。**先确认日志里打印的是不是 `xxx_uranus_bigtts` 形态的 ID**，再去查 ②③ —— 否则会白测一圈音色 |
 | `HTTP 404` | 音色与资源 ID 不匹配 —— 预置音色要配 `seed-tts-2.0` |
 | `网络不可达` | 本包默认直连；若确实需要代理，设 `VOLC_PROXY=http://127.0.0.1:<port>` |
 | 音频末尾「嘎然而止」 | 结束标记 `code=20000000` 的处理问题（本包已处理；自研代码要留意） |

@@ -94,7 +94,7 @@ bash <skill>/setup_env.sh          # 首台机器先跑一次
 ## 阶段 5 · 渲染与打样
 
 ```bash
-node <skill>/scripts/render_video.mjs . --preview 30    # 前 30 秒草稿（JPEG 快渲）
+node <skill>/scripts/render_video.mjs . --preview 30 --jpeg   # 前 30 秒草稿（JPEG 快渲）
 ```
 
 **确认点 4**：把 preview.mp4 给用户看，风格/字号/语速/节奏在这里一次定稿。
@@ -106,6 +106,12 @@ node <skill>/scripts/render_video.mjs . --preview 30    # 前 30 秒草稿（JPE
 node <skill>/scripts/render_video.mjs .               # PNG 精渲 + 音轨 mux → out/<slug>.mp4
 "$PY" <skill>/scripts/qc_check.py --project .          # 体检 + 抽帧速览图
 ```
+
+> **画面里有满幅照片时，先换截图模式再开渲**（`lessons.md` 第 69 条）：
+> 默认 PNG 对照片帧是 582ms/帧（纯 CSS 图形帧只要 45ms），且编码在浏览器进程内串行，
+> **加 `--concurrency` 毫无作用**（并发 1/3/6 路总吞吐 1.80/1.86/1.87 帧/秒）。
+> 修法二选一 —— 无损走 `--png-fast`（4.4×），要 13× 走 `--jpeg --jpeg-quality 95`。
+> 判断口径：**开工前先看一眼「帧里有没有满幅照片」，有就换，别等渲了半小时才发现。**
 
 ### 改一句文案之后
 
