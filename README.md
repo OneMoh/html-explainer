@@ -382,3 +382,13 @@ tl.fromTo('.verdict', { scale: 0.8 },          { scale: 1, duration: 0.6 },     
 MIT 覆盖原创代码与文档。第三方组件与衍生出的风格规范仍适用其各自的条款；GSAP 按 GreenSock
 的 [standard "no charge" 许可](https://gsap.com/standard-license) 内置。完整声明见
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
+
+---
+
+<div align="center">
+
+如果这个项目对你有帮助，欢迎请作者喝杯咖啡 ☕
+
+<img src="https://raw.githubusercontent.com/OneMoh/html-explainer-demos/main/images/wechat-reward-qr.jpg" width="220" alt="Moh 的赞赏码">
+
+</div>

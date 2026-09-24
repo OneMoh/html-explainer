@@ -417,3 +417,13 @@ MIT covers the original code and documentation. Bundled third-party components a
 style specifications remain under their own terms; GSAP is bundled under GreenSock's
 [standard "no charge" licence](https://gsap.com/standard-license). Full notices are in
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) (Chinese).
+
+---
+
+<div align="center">
+
+If this project helps you, feel free to buy the author a coffee ☕
+
+<img src="https://raw.githubusercontent.com/OneMoh/html-explainer-demos/main/images/wechat-reward-qr.jpg" width="220" alt="Moh's reward QR code">
+
+</div>
