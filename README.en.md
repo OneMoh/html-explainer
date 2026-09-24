@@ -424,6 +424,6 @@ style specifications remain under their own terms; GSAP is bundled under GreenSo
 
 If this project helps you, feel free to buy the author a coffee ☕
 
-<img src="https://raw.githubusercontent.com/OneMoh/html-explainer-demos/main/images/wechat-reward-qr.jpg" width="220" alt="Moh's reward QR code">
+<img src="https://raw.githubusercontent.com/OneMoh/html-explainer-demos/main/images/wechat-reward-qr.jpg" width="340" alt="Moh's reward QR code">
 
 </div>

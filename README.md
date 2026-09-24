@@ -389,6 +389,6 @@ MIT 覆盖原创代码与文档。第三方组件与衍生出的风格规范仍�
 
 如果这个项目对你有帮助，欢迎请作者喝杯咖啡 ☕
 
-<img src="https://raw.githubusercontent.com/OneMoh/html-explainer-demos/main/images/wechat-reward-qr.jpg" width="220" alt="Moh 的赞赏码">
+<img src="https://raw.githubusercontent.com/OneMoh/html-explainer-demos/main/images/wechat-reward-qr.jpg" width="340" alt="Moh 的赞赏码">
 
 </div>
