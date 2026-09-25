@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><style>
+  html,body { margin:0; width:1920px; height:1080px; overflow:hidden;
+    background:#0d0f14; color:#eef2f7;
+    font-family:'Microsoft YaHei','PingFang SC','Noto Sans CJK SC',sans-serif; }
+  .bg { position:absolute; inset:0; background:radial-gradient(900px 600px at 50% 40%, #1b2130, #0d0f14); }
+  .grid { position:absolute; inset:0; opacity:.25;
+    background-image:linear-gradient(#2a3242 1px,transparent 1px),linear-gradient(90deg,#2a3242 1px,transparent 1px);
+    background-size:120px 120px; }
+
+  /* ① 图表：容器高度只算了柱区，轴标签溢出到容器外，正好被证据条压住 */
+  .chart { position:absolute; left:120px; top:300px; width:900px; height:420px; }
+  .bar { position:absolute; bottom:0; width:240px; background:#3E8FD8; }
+  .bar.a { left:100px; height:220px; }
+  .bar.b { left:520px; height:400px; background:#E8912B; }
+  .axis { position:absolute; left:0; right:0; top:520px; display:flex;
+    justify-content:space-between; font-size:26px; color:#9aa7b8; }
+
+  /* ② 证据条：绝对定位钉在 bottom:176px，正好压在轴标签上 */
+  .evidence { position:absolute; left:120px; right:120px; bottom:176px; height:88px;
+    background:#1a2130; border:2px solid #2a3242; border-radius:10px;
+    display:flex; align-items:center; padding:0 26px; font-size:24px; }
+
+  /* ③ 越界：底边 1040，侵入字幕带 */
+  .intrude { position:absolute; left:1300px; bottom:40px; font-size:28px; color:#E8912B; }
+
+  /* ④ 一个该跟 SVG 图形共心的标记，却偏了 78px */
+  .fig { position:absolute; left:660px; top:120px; width:600px; height:600px; }
+  .dot { position:absolute; left:960px; top:460px; width:40px; height:40px;
+    border-radius:50%; background:#E8912B; }
+</style></head>
+<body>
+  <div class="bg"></div>
+  <div class="grid"></div>
+
+  <div class="fig">
+    <svg width="600" height="600" viewBox="0 0 600 600">
+      <g stroke="#3E8FD8" stroke-width="6">
+        <line x1="300" y1="300" x2="300" y2="40"/>
+        <line x1="300" y1="300" x2="300" y2="560"/>
+        <line x1="300" y1="300" x2="40"  y2="300"/>
+        <line x1="300" y1="300" x2="560" y2="300"/>
+        <line x1="300" y1="300" x2="105" y2="105"/>
+        <line x1="300" y1="300" x2="495" y2="105"/>
+        <line x1="300" y1="300" x2="105" y2="495"/>
+        <line x1="300" y1="300" x2="495" y2="495"/>
+      </g>
+      <circle cx="300" cy="300" r="70" fill="none" stroke="#eef2f7" stroke-width="5"/>
+    </svg>
+  </div>
+  <div class="dot"></div>
+
+  <div class="chart">
+    <div class="bar a"></div>
+    <div class="bar b"></div>
+    <div class="axis"><span>700nm · 红光</span><span>450nm · 蓝光</span></div>
+  </div>
+
+  <div class="intrude">这行字侵入字幕带</div>
+  <div class="evidence">计算 · 按 1/λ⁴ 计算：450nm vs 700nm ≈ 5.9× · 出处：HyperPhysics</div>
+</body></html>

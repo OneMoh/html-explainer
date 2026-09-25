@@ -32,6 +32,9 @@
 - `peek_frame.mjs` 新增 `--guides`：叠**十字中线 + 字幕禁区线 + 左右安全边**。
   判「元素有没有对齐」必须有参照物 —— 没有基准线时，肉眼判不出「圆点在不在图形中心」。
 - `.github/ISSUE_TEMPLATE/bug_report.yml` 新增「★ 出错的位置在几分几秒？」字段。
+- `tests/geometry-fixture/`：**几何体检的证伪样本** —— 一个文件里塞进 issue #1 的三类症状
+  （越界 / 遮挡 / 错位），期望 ERROR 2 / WARN 0 / INFO 1。检查类工具必须能被证伪：
+  拿合格项目报 0 ERROR 是**待证实**而不是通过（见 `references/lessons.md` #76）。
 - `references/frame-contract.md` 新增「几何：两类不会报错的错，和它们的确定性判据」一节，
   含**一个几何体只准有一个坐标系**（SVG 图元与 HTML 部件不得混用两套基准）；
   第 6 条把安全线口径写清（170px 硬底线 / 176px 设计基准）。

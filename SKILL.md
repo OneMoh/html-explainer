@@ -295,6 +295,7 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 | `scripts/check_integrity.py` | 仓库自洽性：版本号/风格目录/计数一致性 + 模板外链扫描（CI 与本地都跑） |
 | `scripts/make_theme.py` | 4 预设 + 主题词推色 → theme.css（CSS 变量单源） |
 | `scripts/import_styles.py` | （移植期一次性工具）把已装 html-video 的设计规范抄成纯文本风格目录；**跑视频永不需要它** |
+| `tests/geometry-fixture/` | **几何体检的证伪样本**：故意坏掉的帧（越界 + 遮挡 + 错位），期望 ERROR 2 / WARN 0 / INFO 1。改 `check_layout.mjs` 后先拿它验「还抓得到错」，再拿真实项目验「误报没变多」 |
 | `setup_env.sh` | 环境自检 / `--install` 联网装缺项 |
 | `package_skill.py` | 打成可移植 zip（`--with-deps` 含 node_modules） |
 
