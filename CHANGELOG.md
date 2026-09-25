@@ -11,6 +11,44 @@
 
 ---
 
+## [1.3.3] — 2026-09-25
+
+### 新增
+
+- **★ `scripts/check_layout.mjs`：渲染前的几何体检器。** `lint_frames.py` 是**静态文本**检查
+  （禁色值字面量、禁 transition、中文字体族…），**它看不见几何**；而画面里最常见的两类
+  「静默出错」恰恰是几何问题 —— **遮挡**（图表轴标签被底部证据条压住、两段文字打架）和
+  **越界**（内容溢出画布、压进字幕带）。两者都 lint 全绿、渲完几千帧才被人眼发现。
+  新工具把「谁和谁重叠、谁越界」变成可枚举清单（`out/layout_report.md`）：
+  侵入字幕禁区 / 出画 / 文字被遮挡 / 文字重叠 = **ERROR**（退出码 1，可挂流水线）；
+  越安全边 / 文字压色块 / 色块重叠 = WARN；「疑似该跟图形共心却差了 N 像素」= INFO。
+  度量基准是被三个版本的假阳性逼出来的：**量字墨**（`Range` 逐行，不是元素框）+ **纵向收成
+  em 盒**（行盒含字体留白，紧排大字号会擦边），带底色的元素仍用元素框。
+- **★ `scripts/frame_at.py`：排障入口 —— 报「几分几秒」直接落到那一帧。**
+  `--at 1:23` 给出场景 id / 帧号 / `frames/<id>.html` / 当刻字幕块（反查代码里的哪一句
+  `B('…')`）/ 整帧图 / 底部 260px 禁区带裁图 / **场景终态帧**；另有 `--list`（全片场景时间表）、
+  `--box x0,y0,x1,y1`（再裁可疑区）、`--final`、`--no-images`。
+  配合带视觉的模型看图 → 改一个 HTML → `--only <id>` 局部重渲 → 回到同一时间点复核。
+- `peek_frame.mjs` 新增 `--guides`：叠**十字中线 + 字幕禁区线 + 左右安全边**。
+  判「元素有没有对齐」必须有参照物 —— 没有基准线时，肉眼判不出「圆点在不在图形中心」。
+- `.github/ISSUE_TEMPLATE/bug_report.yml` 新增「★ 出错的位置在几分几秒？」字段。
+- `references/frame-contract.md` 新增「几何：两类不会报错的错，和它们的确定性判据」一节，
+  含**一个几何体只准有一个坐标系**（SVG 图元与 HTML 部件不得混用两套基准）；
+  第 6 条把安全线口径写清（170px 硬底线 / 176px 设计基准）。
+- SKILL.md 新增「★ 画面出错怎么定位」一节（报时间点 → 定位 → 看图 → 改 → 局部重渲 四步），
+  质量标尺补「几何 ERROR 清零」；`references/lessons.md` 新增 #76–#78。
+
+### 修复
+
+- **★ `qc_check.py` 的帧数校验在部分 ffmpeg 构建上被静默跳过。** 旧实现只从 ffmpeg 的
+  stderr 里找 `frame= …` stats 行，而那条 stats 行**打不打印、字段前缀长什么样，随
+  ffmpeg 构建而变** —— 有人用 gyan.dev 7.0 full build 时 stderr 里一条都没有，
+  QC 报告里只剩一句 `⚠ 无法实测视频流帧数（跳过帧数校验）`，帧数校验形同不存在。
+  现在同时读 `-progress pipe:1` 的机器可读流（跨版本稳定），两条通道任一命中即可。
+  报这条的用户是自己发现的，不是我们发现的。
+
+---
+
 ## [1.3.2] — 2026-09-25
 
 ### 修复
@@ -321,6 +359,7 @@
 - `setup_env.sh` 做首次环境自检，`--install` 装缺失依赖；`package_skill.py` 打可移植 zip。
 
 [1.3.2]: https://github.com/OneMoh/html-explainer/releases/tag/v1.3.2
+[1.3.3]: https://github.com/OneMoh/html-explainer/releases/tag/v1.3.3
 [1.3.1]: https://github.com/OneMoh/html-explainer/releases/tag/v1.3.1
 [1.3.0]: https://github.com/OneMoh/html-explainer/releases/tag/v1.3.0
 [1.2.3]: https://github.com/OneMoh/html-explainer/releases/tag/v1.2.3

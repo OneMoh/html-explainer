@@ -49,6 +49,19 @@ body:
     validations:
       required: false
 
+  - type: input
+    id: timestamp
+    attributes:
+      label: ★ 出错的位置在几分几秒？
+      description: >
+        如果画面本身有问题（元素错位、被压住、内容跑到字幕带上），请写清**在成片的第几分几秒**
+        —— 有这个时间点，就能用 `scripts/frame_at.py --project . --at 1:23` 直接落到那一帧的
+        图片（场景 id、帧号、源文件、当刻字幕块、终态帧一起给出），不用从头翻片子。
+        多个位置就多写几个，逗号隔开。
+      placeholder: "1:23（右下角示意图里小黑点没落在射线汇聚点上）；2:05（柱状图轴标签被底部条压住）"
+    validations:
+      required: false
+
   - type: textarea
     id: environment
     attributes:

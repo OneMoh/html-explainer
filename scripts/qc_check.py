@@ -66,17 +66,25 @@ def count_video_frames(ff, path):
     为什么不能只看 Duration：容器时长会被音轨撑起来。若帧序列中间有缺口，
     ffmpeg 的 image2 序列会在缺口处停下、**退出码仍是 0**，于是视频流只有前半段，
     而容器 Duration 依旧显示完整长度 —— 这个假通过真的发生过，见 lessons #57。
+
+    ★ 两条通道都要读（lessons #76）：`-progress pipe:1` 把机器可读的 key=value
+    写到 stdout（跨版本稳定），老式的 `frame= …` stats 行走 stderr 且**是否打印、
+    字段前缀都随 ffmpeg 构建而变** —— 有人用 gyan.dev 7.0 full build 时 stderr 里
+    一条 `frame=` 都没有，帧数校验被静默跳过（QC 里只剩一句 WARN）。
+    `-f null -` 的 null muxer 不产出任何字节，所以不会污染 stdout 的进度流。
     """
-    r = subprocess.run([ff, "-hide_banner", "-i", path,
-                        "-map", "0:v:0", "-c", "copy", "-f", "null", "-"],
+    r = subprocess.run([ff, "-hide_banner", "-nostdin", "-progress", "pipe:1",
+                        "-i", path, "-map", "0:v:0", "-c", "copy", "-f", "null", "-"],
                        capture_output=True, text=True, errors="replace")
     n = None
-    for line in r.stderr.splitlines():
-        if line.startswith("frame="):
-            try:
-                n = int(line.split("frame=")[1].strip().split()[0])
-            except (IndexError, ValueError):
-                pass
+    for stream in (r.stdout, r.stderr):
+        for line in (stream or "").splitlines():
+            line = line.strip()
+            if line.startswith("frame="):
+                try:
+                    n = int(line.split("=", 1)[1].strip().split()[0])
+                except (IndexError, ValueError):
+                    pass
     return n
 
 
@@ -142,7 +150,12 @@ def main() -> int:
         if exp_frames:
             got = count_video_frames(ff, video)
             if got is None:
-                warns.append("无法实测视频流帧数（跳过帧数校验）")
+                warns.append(
+                    "无法实测视频流帧数（跳过帧数校验）—— 说明本机 ffmpeg 两条通道都"
+                    "没吐出 frame= 计数（`-progress pipe:1` 与 stats 行都试过了）。"
+                    "**请把这条连同 `ffmpeg -version` 首行一起反馈**，这是环境差异不是画面问题。"
+                    "临时替代：跑 `python scripts/frame_at.py --project . --list` 看 layout 期望帧数，"
+                    "再用 `ls render/frames | wc -l` 对一下。")
             elif int(got) != int(exp_frames):
                 fails.append(
                     f"成片实测 {got} 帧 ≠ layout 期望 {exp_frames} 帧 —— 视频流被截断。"

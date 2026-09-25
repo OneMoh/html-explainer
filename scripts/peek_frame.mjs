@@ -9,6 +9,7 @@
  *   node script/peek_frame.mjs <项目目录> <帧id> [--at 80] [--n 3] [--scale 1]
  *   node script/peek_frame.mjs . hook --at 40,80              # 指定百分比时点
  *   node script/peek_frame.mjs . --all --at 85                # 所有帧都截一张
+ *   node script/peek_frame.mjs . 05_open --at 100 --guides    # 叠十字中线 + 字幕禁区线
  *
  * 产出：<项目>/render/peek/<id>@<pct>.png
  *
@@ -74,6 +75,8 @@ function parseArgs(argv) {
     else if (t === '--n') a.n = parseInt(argv[++i], 10);
     else if (t === '--scale') a.scale = parseFloat(argv[++i]);
     else if (t === '--all') a.all = true;
+    else if (t === '--guides') a.guides = true;
+    else if (t === '--safe-bottom') a.safeBottom = parseFloat(argv[++i]);
     else if (!t.startsWith('--')) a._.push(t);
   }
   return a;
@@ -131,6 +134,49 @@ const seek = async (o) => {
   return { seekTo, dur };
 };
 
+// 参考线：十字中线（画布 50%/50%）+ 字幕禁区线（底部 170px）+ 左右安全边（64px）。
+// 用途：issue #1 那类「蓝点没在射线汇聚点上」的错位，肉眼在没有基准的画面里判不了 ——
+// 叠一层中线，圆点在不在正中一眼可见。（只加在速览图上，不进成片。）
+const guides = (o) => {
+  const id = '__mg_guides__';
+  const old = document.getElementById(id);
+  if (old) old.remove();
+  const d = document.createElement('div');
+  d.id = id;
+  d.style.cssText = 'position:fixed;inset:0;z-index:9999;pointer-events:none;'
+    + 'font:600 15px/1 ui-monospace,Menlo,Consolas,monospace;';
+  const M = 'rgba(255,0,200,.75)', S = 'rgba(0,200,255,.75)';
+  const box = (x, y, w, h, bd, extra) => {
+    const e = document.createElement('div');
+    e.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;`
+      + `border:${bd};${extra || ''}`;
+    d.appendChild(e);
+    return e;
+  };
+  // 中线
+  box(o.W / 2 - 0.5, 0, 1, o.H, `1px solid ${M}`);
+  box(0, o.H / 2 - 0.5, o.W, 1, `1px solid ${M}`);
+  // 安全线（内容底边不得越过）
+  box(0, o.H - o.safeBottom - 1, o.W, 0, `1px dashed ${S}`);
+  box(0, o.H - 260, o.W, 0, `1px dotted rgba(0,200,255,.45)`);
+  // 左右安全边
+  box(o.safeSide, 0, 0, o.H, `1px dashed rgba(0,200,255,.45)`);
+  box(o.W - o.safeSide, 0, 0, o.H, `1px dashed rgba(0,200,255,.45)`);
+  const tag = (x, y, t, c) => {
+    const e = document.createElement('div');
+    e.textContent = t;
+    e.style.cssText = `position:absolute;left:${x}px;top:${y}px;color:${c};`
+      + 'text-shadow:0 1px 3px rgba(0,0,0,.9);white-space:nowrap;';
+    d.appendChild(e);
+  };
+  tag(o.W / 2 + 8, 8, '中线 50%', M);
+  tag(o.W / 2 + 8, o.H / 2 + 8, '中线 50%', M);
+  tag(8, o.H - o.safeBottom - 22, `安全线 y=${o.H - o.safeBottom}（字幕带 170px 之上）`, S);
+  tag(8, o.H - 282, 'y=' + (o.H - 260), 'rgba(0,200,255,.7)');
+  document.body.appendChild(d);
+  return true;
+};
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const projectDir = path.resolve(args._[0] || '.');
@@ -174,6 +220,7 @@ async function main() {
       await page.evaluate(FONT_WAIT);
       for (const pct of pcts) {
         const r = await page.evaluate(seek, { pct });
+        if (args.guides) await page.evaluate(guides, { W, H, safeSide: 64, safeBottom: args.safeBottom || 170 });
         const out = path.join(outDir, `${id}@${String(pct).replace('.', '_')}.png`);
         await page.screenshot({ path: out, type: 'png', scale: 'device' });
         log(`✓ ${id} @${pct}%  seek ${r.seekTo.toFixed(2)}s / 轴长 ${r.dur == null ? '无' : r.dur.toFixed(2)}s  →  ${path.basename(out)}`);

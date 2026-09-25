@@ -1,6 +1,6 @@
 ---
 name: html-explainer
-version: 1.3.2
+version: 1.3.3
 description: 把任意主题做成「讲解/科普视频」并渲染成 MP4：调研→审查→解说词→字幕→配音（edge-tts，或火山引擎语音合成 2.0）→并行构建 HTML 场景→确定性逐帧渲染→成片后出双方案封面。**画面语言内置 23 个模板风格 / 8 个类别**（大胆信号卡、奢华极简、NYT 数据图表、瑞士网格、故障艺术、胶片漏光、流体 Hero、Logo 收尾、东方柔和有机、VFX 文字光标…共 23 种风格，含每种的画布/配色/字体/时间轴规范，见 references/style-catalog.md），流程规范与音画同步体系承自 anything2explainer（词边界字幕、两级时钟、语速标定、多 agent 分工与 QC 判据），渲染层为自研 seek 式渲染器。**封面双方案**：抖音主封面 1920×1080 + 兼容 3:4 的 1440×1080（独立重排，防主页栅格切字）。独立可移植：GSAP 内置、playwright-core 随包、ffmpeg 走 imageio-ffmpeg 回退、浏览器自动探测 Chrome/Edge；**不依赖 html-video / anything2explainer 任何代码或目录**。触发场景：要做科普/讲解/教学/知识/产品类视频、"讲一下 X 做成视频"、要用 html-video 那种模板化画面但更稳的音画同步、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面、anything2explainer 换 HTML 渲染、或提到 html-explainer / HTML 讲解视频 / explainer video / MG 视频。
 agent_created: true
 ---
@@ -75,6 +75,7 @@ PY=<venv python 绝对路径>          # 派子 agent 时必须展开成绝对�
 "$PY" <skill>/scripts/timeline_build.py --project .   # 全局时间轴：layout.json + narration-full.mp3
 "$PY" <skill>/scripts/subs.py           --project .   # 字幕：subs.json + beats.js + srt/vtt
 "$PY" <skill>/scripts/lint_frames.py    --project .   # 静态体检：八条契约违规（渲染前一秒出结果，比渲完再发现便宜得多）
+node <skill>/scripts/check_layout.mjs   .             # ★ 几何体检：越界 / 侵入字幕带 / 元素互相遮挡（lint 看不见几何）
 node <skill>/scripts/render_video.mjs   . [--preview 30] [--keep-frames] [--only <场景id>] [--mux-only] [--png-fast|--jpeg] [--concurrency N]   # 渲染：out/<slug>.mp4
 "$PY" <skill>/scripts/qc_check.py       --project .   # 体检 + 抽帧速览图
 node <skill>/scripts/cover_build.mjs    .             # 封面双方案：out/cover_169.png + cover_34.png
@@ -101,7 +102,13 @@ node <skill>/scripts/cover_build.mjs    .             # 封面双方案：out/co
 "$PY" <skill>/scripts/make_theme.py --topic "医疗" --use   # 主题换色（只重写 theme.css，帧零改动）
 node <skill>/scripts/peek_frame.mjs . <帧id> --at 40,80    # 单帧速览：秒级出图，先看设计对不对
 # ★ peek_frame 的 --at 是**百分比**不是帧号；查冷开场空屏要传 --at 1,3,6 这种小百分数
+node <skill>/scripts/peek_frame.mjs . <帧id> --at 100 --guides  # 叠十字中线 + 字幕禁区线（判对齐必开）
+"$PY" <skill>/scripts/frame_at.py --project . --at 1:23    # 时间点 → 场景/帧号/源文件/终态帧图
+"$PY" <skill>/scripts/frame_at.py --project . --list       # 全片场景时间表
 ```
+
+画面排障（用户报「几分几秒」→ 定位到帧 → 视觉模型看图 → 改 → 局部重渲）的完整四步见
+上文「★ 画面出错怎么定位」。
 
 顺序不能乱：tts → timeline → subs（beats 依赖前两者）→ lint → 渲染 → QC → 封面。改解说词 → 重跑前三条，
 `frames/<id>.beats.js` 自动刷新，**场景 HTML 一行不用改**（这是对 anything2explainer
@@ -198,12 +205,44 @@ node <skill>/scripts/peek_frame.mjs . <帧id> --at 40,80    # 单帧速览：秒
    - 想「照镜子」不必渲全片：`node scripts/peek_frame.mjs <项目> <id> --at 40,80` 秒级出图
 5. **静态体检**：`lint_frames.py --project .` 把八条契约违规钉在渲染之前（外链字体、色值字面量、
    墙钟逻辑、`B()|| N` 兜底、字幕带压内容、缺中文字体族…）；FAIL 清零再进渲染。
+   **再跑 `check_layout.mjs .`** —— lint 看不见几何，元素互相遮挡 / 侵入字幕带 / 出画只有它管；
+   ERROR 清零再进渲染（两条命令都是一秒级，比渲完几千帧再回来看便宜得多）。
 6. **打样**：`render_video.mjs . --preview 30` → **确认点 4**（风格/字号/语速/节奏一次定稿）→ 全片渲染 + qc_check
 7. **QC**：qc_report.md 的 FAIL 清零 + qc_sheet.jpg 肉眼过（字幕带 80–170px 无内容、一焦点、光跟主角）→ 按组修复 → 重渲
 8. **封面双方案**：做 `frames/cover_169.html` + `cover_34.html`（独立排版）→ `node scripts/cover_build.mjs .`
    → 核对 `out/cover_report.md` + `references/cover-guide.md` 的七条自检清单
 9. **交付**：mp4 + 两张封面 + srt/vtt（上传平台=可检索文本）+ 发布说明（硬字幕→关平台自动字幕；
    AI 配音→勾 AIGC；封面文字须与视频首帧钩子同义；受监管题材过合规）
+
+## ★ 画面出错怎么定位（用户报「几分几秒」，agent 直接落到那一帧）
+
+成片里发现画面问题（元素错位、被压住、少了东西、动效没走完）时，**不要重新描述场景内容、
+不要从头翻 5000 帧**。流程固定成四步：
+
+1. **用户只需要给「几分几秒」+ 一句现象。** 例：`1:23 右下角示意图里小黑点没在射线汇聚点上，偏左上`。
+   `.github/ISSUE_TEMPLATE/bug_report.yml` 里有一栏专门收这个时间点。
+2. **`frame_at.py` 把时间点翻译成定位信息**（一条命令，秒级）：
+
+   ```bash
+   "$PY" <skill>/scripts/frame_at.py --project . --at 1:23
+   "$PY" <skill>/scripts/frame_at.py --project . --at 1:23 --box 1400,200,1920,900   # 再裁一块可疑区
+   "$PY" <skill>/scripts/frame_at.py --project . --list                              # 全片场景时间表
+   ```
+
+   产出 `out/probe/`：**场景 id / 帧号 / 场景源文件 `frames/<id>.html` / 节拍文件 / 当刻字幕块
+   （反查代码里的哪一句 `B('…')`）**，以及三张给视觉模型看的图 —— 整帧（1280 宽）、
+   底部 260px 禁区带（1:1）、**场景终态帧**。
+3. **带视觉的模型看那几张图**（这是关键：只用文本描述「蓝点没在中间」定位不到，看图能直接
+   读出偏了多少、偏哪个方向、被谁压住）。先看**终态帧**，再看当刻帧。
+4. **改 `frames/<id>.html` → 重跑 `check_layout.mjs`（几何）→ `lint_frames.py`（契约）→
+   `render_video.mjs . --only <场景id>` 局部重渲** → 回到第 2 步复核同一时间点。
+
+### 两条判据（省掉大量返工）
+
+- **先看终态，再看中途。** 中途帧的入场动画可能还没走完，元素位置**本来就该**和终态不同 ——
+  单看它分不清「代码错」还是「动画错」。**终态也错 = 布局本身错了；只有中途错 = 动画时序问题。**
+- **`--only <id>` 只对末场安全**（见 `lessons.md` #15）：改短了必须删尾部过期帧，
+  且**渲染日志的 ✓ 不算证据** —— 用 `frame_at.py` 回到那个时间点看图确认。
 
 ## 场景契约速查（完整版 references/frame-contract.md）
 
@@ -216,6 +255,9 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 ## 质量标尺
 
 - 画面：每帧一个焦点，主角带光；accent 只给当前重点；背景只有幕底+网格，无碎屑
+- **几何：`check_layout.mjs` ERROR 清零** —— 遮挡/越界是唯一一类「lint 全绿但仍然错」的问题
+  （lint 只看文本规则）。**一个几何体只准有一个坐标系**：SVG 图元与 HTML 部件不得混用两套基准
+  （issue #1「蓝点没落在射线汇聚点上」的根因，见 `references/frame-contract.md`）
 - 节拍：元素出现落在对应字幕块起始 ±0.2s 内（B() 天然保证）；每句至少一处可察觉变化
 - 字幕：中文 ≤16 字/块、无标点、单帧硬切、每块 ≥0.6s；末块跟着语音消失
 - 底色：**用了亮底（浅色背景）就必须先给字幕层换肤** —— 渲染器注入的字幕/进度条默认是
@@ -238,7 +280,8 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 | `scripts/tts_build.py` | 配音合成：edge-tts **或** 火山引擎（`--provider`）；缓存/硬超时/退避重试/裁静音，manifest 写两级时长。两引擎 manifest 结构一致 |
 | `scripts/timeline_build.py` | layout.json 全局轴 + narration-full.mp3（gap 显式插入） |
 | `scripts/subs.py` | 字幕三出口（subs.json / srt+vtt / 画面内层由渲染器注入）+ beats.js 节拍器 |
-| `scripts/lint_frames.py` | **渲染前静态体检**：八条契约违规逐条报（外链字体/色值字面量/墙钟/`B()\|\|N`/字幕带压内容/缺中文字体族…） |
+| `scripts/lint_frames.py` | **渲染前静态体检**：八条契约违规逐条报（外链字体/色值字面量/墙钟/`B()\|\|N`/字幕带压内容/缺中文字体族…）—— 只看**文本规则**，看不见几何 |
+| `scripts/check_layout.mjs` | **渲染前几何体检**（终态）：侵入字幕禁区 / 出画 / 文字被遮挡 / 文字重叠 = ERROR；越安全边 / 文字压色块 / 色块重叠 = WARN；疑似未对齐 = INFO。量的是**字墨范围**（Range 逐行）而非元素框。`--only` / `--json` / `--safe-bottom`；有 ERROR 退出码 1 |
 | `scripts/render_video.mjs` | 渲染器：浏览器探测 → 逐场景 seek 截图 → ffmpeg 合成；`--preview N` 快样片，`--only <场景id>` 只重渲指定场景（**仅末场安全**，变短后须清尾部过期帧，见 lessons 45），`--mux-only` 用现有帧重新合成；**帧里有满幅照片就必须换截图模式**（默认 PNG 编码占 96% 帧时间且与并发无关）：`--png-fast` 无损 4.4×，`--jpeg --jpeg-quality 95` 13×；`--crf N` / `--preset <名>` 单独控制成片码率 |
 | `scripts/qc_check.py` | 流/时长/音量/抽帧体检 + contact sheet |
 | `scripts/cover_build.mjs` | 封面双方案渲染器：`width=1920/1440` 两份独立排版 → 2 倍图；`--at` / `--only` / `--jpg` |
@@ -247,7 +290,8 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 
 | 路径 | 作用 |
 |---|---|
-| `scripts/peek_frame.mjs` | 单帧速览：不渲全片，秒级截某场景的几个时点看图（`--at` 是百分比） |
+| `scripts/peek_frame.mjs` | 单帧速览：不渲全片，秒级截某场景的几个时点看图（`--at` 是百分比）；`--guides` 叠十字中线 + 字幕禁区线（**判「元素有没有对齐」必须开**，没有基准线肉眼判不了） |
+| `scripts/frame_at.py` | **时间点 → 定位**：报「几分几秒」就能拿到场景 id / 帧号 / 源文件 / 当刻字幕块 / 整帧图 / 底部禁区带裁图 / **场景终态帧**（`--at 1:23` / `--list` / `--box x0,y0,x1,y1` / `--final`）。画面排障的入口工具 |
 | `scripts/check_integrity.py` | 仓库自洽性：版本号/风格目录/计数一致性 + 模板外链扫描（CI 与本地都跑） |
 | `scripts/make_theme.py` | 4 预设 + 主题词推色 → theme.css（CSS 变量单源） |
 | `scripts/import_styles.py` | （移植期一次性工具）把已装 html-video 的设计规范抄成纯文本风格目录；**跑视频永不需要它** |
