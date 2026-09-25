@@ -129,21 +129,21 @@ const OVERLAY_CSS = `
     position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%);
     white-space: nowrap; text-align: center;
     font-family: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', 'Source Han Sans SC', sans-serif;
-    font-weight: 700; font-size: 44px; line-height: 1.2; color: #FFFFFF;
+    font-weight: 700; font-size: 44px; line-height: 1.2; color: var(--mg-sub-fg, #FFFFFF);
     text-shadow:
-      4px 0 0 #000, -4px 0 0 #000, 0 4px 0 #000, 0 -4px 0 #000,
-      2.4px 2.4px 0 #000, -2.4px 2.4px 0 #000, 2.4px -2.4px 0 #000, -2.4px -2.4px 0 #000,
-      1.2px 1.2px 0 #000, -1.2px 1.2px 0 #000, 1.2px -1.2px 0 #000, -1.2px -1.2px 0 #000,
-      3.2px 1.06px 0 #000, -3.2px 1.06px 0 #000, 3.2px -1.06px 0 #000, -3.2px -1.06px 0 #000,
-      1.06px 3.2px 0 #000, -1.06px 3.2px 0 #000, 1.06px -3.2px 0 #000, -1.06px -3.2px 0 #000,
-      2.83px 2.83px 0 #000, -2.83px 2.83px 0 #000, 2.83px -2.83px 0 #000, -2.83px -2.83px 0 #000;
+      4px 0 0 var(--mg-sub-stroke, #000), -4px 0 0 var(--mg-sub-stroke, #000), 0 4px 0 var(--mg-sub-stroke, #000), 0 -4px 0 var(--mg-sub-stroke, #000),
+      2.4px 2.4px 0 var(--mg-sub-stroke, #000), -2.4px 2.4px 0 var(--mg-sub-stroke, #000), 2.4px -2.4px 0 var(--mg-sub-stroke, #000), -2.4px -2.4px 0 var(--mg-sub-stroke, #000),
+      1.2px 1.2px 0 var(--mg-sub-stroke, #000), -1.2px 1.2px 0 var(--mg-sub-stroke, #000), 1.2px -1.2px 0 var(--mg-sub-stroke, #000), -1.2px -1.2px 0 var(--mg-sub-stroke, #000),
+      3.2px 1.06px 0 var(--mg-sub-stroke, #000), -3.2px 1.06px 0 var(--mg-sub-stroke, #000), 3.2px -1.06px 0 var(--mg-sub-stroke, #000), -3.2px -1.06px 0 var(--mg-sub-stroke, #000),
+      1.06px 3.2px 0 var(--mg-sub-stroke, #000), -1.06px 3.2px 0 var(--mg-sub-stroke, #000), 1.06px -3.2px 0 var(--mg-sub-stroke, #000), -1.06px -3.2px 0 var(--mg-sub-stroke, #000),
+      2.83px 2.83px 0 var(--mg-sub-stroke, #000), -2.83px 2.83px 0 var(--mg-sub-stroke, #000), 2.83px -2.83px 0 var(--mg-sub-stroke, #000), -2.83px -2.83px 0 var(--mg-sub-stroke, #000);
   }
   #mg-progress { position: fixed; left: 0; right: 0; bottom: 0; height: 12px;
-    z-index: 901; pointer-events: none; background: rgba(255,255,255,.10); }
+    z-index: 901; pointer-events: none; background: var(--mg-track, rgba(255,255,255,.10)); }
   #mg-progress .mg-bar { height: 100%; width: 0%;
     background: var(--accent, #E4AE29); box-shadow: 0 0 12px var(--accent-glow, rgba(228,174,41,.55)); }
   #mg-progress .mg-tick { position: absolute; top: 0; width: 2px; height: 100%;
-    background: rgba(255,255,255,.38); }
+    background: var(--mg-tick, rgba(255,255,255,.38)); }
 `;
 
 function overlaySetupJs(blocks, fps, withProgress, chapterTicks) {

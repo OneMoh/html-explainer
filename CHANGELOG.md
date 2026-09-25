@@ -9,6 +9,37 @@
 
 ---
 
+## [1.3.2] — 2026-09-25
+
+### 修复
+
+- **★ 渲染器的字幕层/进度条是「白字 + 黑描边」写死的，做亮底（浅色背景）片时字幕直接看不见。**
+  症状：帧 HTML 全对、`lint_frames.py` 全绿，渲完 4950 帧才发现宣纸底的场景字幕读不出来 ——
+  坏的是 `render_video.mjs` 注入的 `OVERLAY_CSS`，与帧主题无关。
+  现在字幕层改为读主题变量：`--mg-sub-fg` / `--mg-sub-stroke` / `--mg-track` / `--mg-tick`
+  （各自带原来的写死值作 fallback）。**主题文件里给亮底作用域补一份色即可，旧项目零影响。**
+  详见 `references/lessons.md` #75。
+
+### 新增
+
+- **★ 确认点 0：配色 / 风格一律先问用户，禁止凭记忆拍板。** 流程从「四个确认点」改为
+  「五个」。开工（乃至挑风格）之前必须先给用户 **2–4 个候选**，每条写清
+  **① 色号 hex ② 一句气质描述 ③ 适合什么内容**；风格模板同样要列候选，
+  不许静默从「上次挺好用」的记忆里定。用户自带色号时照他的落地，但要回报
+  「哪个色做哪个语义」请他确认。同步更新 `references/workflow-guide.md`。
+- `references/lessons.md` 新增 #72–#75：**双底混用（墨黑暗底 / 宣纸亮底）的正确做法**
+  （把亮底做成一整套变量的作用域翻面 + 全片唯一一份明暗名单，组件 CSS 一个字不用改）、
+  **两条由「抽变量」引发的 lint 假失败**（`var(--font-sans)` 会击穿中文字体族检查；
+  非纯黑白的 `rgba()` 一律算色值字面量，要变成主题变量）、**亮底片的字幕层换肤**、
+  以及确认点 0 的由来。
+
+### 说明
+
+- `scripts/` 除 `render_video.mjs` 的 `OVERLAY_CSS`（纯增量、带 fallback）外未动；
+  `assets/` 未动。已跑通的项目无需重跑，除非它用了亮底。
+
+---
+
 ## [1.3.1] — 2026-09-23
 
 ### 修复
@@ -287,6 +318,7 @@
 - 23 种画面风格目录，8 个类别，按改编成本分类。
 - `setup_env.sh` 做首次环境自检，`--install` 装缺失依赖；`package_skill.py` 打可移植 zip。
 
+[1.3.2]: https://github.com/OneMoh/html-explainer/releases/tag/v1.3.2
 [1.3.1]: https://github.com/OneMoh/html-explainer/releases/tag/v1.3.1
 [1.3.0]: https://github.com/OneMoh/html-explainer/releases/tag/v1.3.0
 [1.2.3]: https://github.com/OneMoh/html-explainer/releases/tag/v1.2.3
