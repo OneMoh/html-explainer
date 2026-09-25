@@ -5,7 +5,9 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
-`1.2.2` 之前的版本都是私有内部发布。**`1.2.2` 是 GitHub 上的首个公开版本。**
+`1.2.2` 之前的版本（`1.1.0` / `1.2.0` / `1.2.1`）都是私有内部发布，
+在这个公开仓库里没有对应提交，所以**不给链接**。
+**`1.2.2` 是 GitHub 上的首个公开版本**，`1.2.2` 起每个版本都有对应的 git tag。
 
 ---
 
@@ -250,7 +252,7 @@
 
 ---
 
-## [1.2.1] — 2026-09-20
+## 1.2.1 — 2026-09-20
 
 四个渲染 / QC 正确性修复，全部是靠给渲染器加探针找出来的，而不是靠肉眼看。
 详见 `references/lessons.md` #27–#30。
@@ -275,7 +277,7 @@
 
 ---
 
-## [1.2.0] — 2026-09-20
+## 1.2.0 — 2026-09-20
 
 ### 新增
 
@@ -297,7 +299,7 @@
 
 ---
 
-## [1.1.0] — 2026-09-20 — 首个打包发布
+## 1.1.0 — 2026-09-20 — 首个打包发布
 
 ### 新增
 
@@ -323,6 +325,3 @@
 [1.3.0]: https://github.com/OneMoh/html-explainer/releases/tag/v1.3.0
 [1.2.3]: https://github.com/OneMoh/html-explainer/releases/tag/v1.2.3
 [1.2.2]: https://github.com/OneMoh/html-explainer/releases/tag/v1.2.2
-[1.2.1]: https://github.com/OneMoh/html-explainer/releases/tag/v1.2.1
-[1.2.0]: https://github.com/OneMoh/html-explainer/releases/tag/v1.2.0
-[1.1.0]: https://github.com/OneMoh/html-explainer/releases/tag/v1.1.0
