@@ -1,7 +1,7 @@
 ---
 name: html-explainer
-version: 1.3.3
-description: 把任意主题做成「讲解/科普视频」并渲染成 MP4：调研→审查→解说词→字幕→配音（edge-tts，或火山引擎语音合成 2.0）→并行构建 HTML 场景→确定性逐帧渲染→成片后出双方案封面。**画面语言内置 23 个模板风格 / 8 个类别**（大胆信号卡、奢华极简、NYT 数据图表、瑞士网格、故障艺术、胶片漏光、流体 Hero、Logo 收尾、东方柔和有机、VFX 文字光标…共 23 种风格，含每种的画布/配色/字体/时间轴规范，见 references/style-catalog.md），流程规范与音画同步体系承自 anything2explainer（词边界字幕、两级时钟、语速标定、多 agent 分工与 QC 判据），渲染层为自研 seek 式渲染器。**封面双方案**：抖音主封面 1920×1080 + 兼容 3:4 的 1440×1080（独立重排，防主页栅格切字）。独立可移植：GSAP 内置、playwright-core 随包、ffmpeg 走 imageio-ffmpeg 回退、浏览器自动探测 Chrome/Edge；**不依赖 html-video / anything2explainer 任何代码或目录**。触发场景：要做科普/讲解/教学/知识/产品类视频、"讲一下 X 做成视频"、要用 html-video 那种模板化画面但更稳的音画同步、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面、anything2explainer 换 HTML 渲染、或提到 html-explainer / HTML 讲解视频 / explainer video / MG 视频。
+version: 1.4.0
+description: 把任意主题做成「讲解/科普视频」并渲染成 MP4：调研→审查→解说词→字幕→配音（edge-tts，或火山引擎语音合成 2.0）→并行构建 HTML 场景→确定性逐帧渲染→成片后出多画幅封面。**画面语言内置 23 个模板风格 / 8 个类别**（大胆信号卡、奢华极简、NYT 数据图表、瑞士网格、故障艺术、胶片漏光、流体 Hero、Logo 收尾、东方柔和有机、VFX 文字光标…共 23 种风格，含每种的画布/配色/字体/时间轴规范，见 references/style-catalog.md），流程规范与音画同步体系承自 anything2explainer（词边界字幕、两级时钟、语速标定、多 agent 分工与 QC 判据），渲染层为自研 seek 式渲染器。**封面默认 16:9 + 3:4 两张**：抖音主封面 1920×1080 + 兼容主页栅格 3:4 的 1440×1080（独立重排，防切字）；**竖版投放再加 9:16 的 1080×1920**（左右并置必须改上下堆叠、上下边距让开平台 UI 层）。独立可移植：GSAP 内置、playwright-core 随包、ffmpeg 走 imageio-ffmpeg 回退、浏览器自动探测 Chrome/Edge；**不依赖 html-video / anything2explainer 任何代码或目录**。触发场景：要做科普/讲解/教学/知识/产品类视频、"讲一下 X 做成视频"、要用 html-video 那种模板化画面但更稳的音画同步、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面/9:16 封面、anything2explainer 换 HTML 渲染、或提到 html-explainer / HTML 讲解视频 / explainer video / MG 视频。
 agent_created: true
 ---
 
@@ -78,7 +78,8 @@ PY=<venv python 绝对路径>          # 派子 agent 时必须展开成绝对�
 node <skill>/scripts/check_layout.mjs   .             # ★ 几何体检：越界 / 侵入字幕带 / 元素互相遮挡（lint 看不见几何）
 node <skill>/scripts/render_video.mjs   . [--preview 30] [--keep-frames] [--only <场景id>] [--mux-only] [--png-fast|--jpeg] [--concurrency N]   # 渲染：out/<slug>.mp4
 "$PY" <skill>/scripts/qc_check.py       --project .   # 体检 + 抽帧速览图
-node <skill>/scripts/cover_build.mjs    .             # 封面双方案：out/cover_169.png + cover_34.png
+node <skill>/scripts/cover_build.mjs    .             # 封面：out/cover_169.png + cover_34.png（竖版再加 cover_916.png）
+node <skill>/scripts/check_cover.mjs    .             # 封面终态几何实测：边距/钩子字号/行宽/孤字/9:16 禁两栏（FAIL 清零再交）
 ```
 
 配音引擎（**跑之前必须先问用户**，见确认点 3）：`edge`（默认，免费免密钥）或
@@ -119,32 +120,52 @@ node <skill>/scripts/peek_frame.mjs . <帧id> --at 100 --guides  # 叠十字中�
 > 只改了一两个场景的画面时，**不要全片重渲**：用「临时项目法」按全局帧号补渲再贴回，
 > 本片 3802 帧全重渲 924s，补渲 hook+outro 两段只花 220s（lessons #33）。
 
-## ★ 封面双方案（成片后必做，不是可选项）
+## ★ 封面（成片后必做，不是可选项）
 
 封面决定点击率，成片决定完播率 —— 一张被切掉半个钩子的封面会让整片白做。
+
+**默认出两张（16:9 + 3:4），竖版投放再加第三张 9:16。** 用户点名某画幅就按用户说的出。
 
 | 规格 | 画布 | 输出 | 用途 |
 |---|---|---|---|
 | **A. 抖音主封面** | 1920×1080 | `out/cover_169.png` | 信息流 / 播放页 |
 | **B. 兼容 3:4** | 1440×1080 | `out/cover_34.png` | 主页栅格（防切字） |
+| **C. 竖版 9:16** | 1080×1920 | `out/cover_916.png` | 竖版全屏信息流 / 小红书 / 视频号 |
 
-**核心纪律：两张是独立排版，不是裁切关系。**
-从 16:9 居中裁 3:4 只剩 810px 宽，丢掉 **57.8%** 画面，大字钩子必被切。
-所以两份共享同一套视觉基因（配色/幕底/主视觉/钩子文案），**各自重排一次版**：
+**核心纪律：每张都是独立排版，不是裁切关系。**
+从 16:9 居中裁 3:4 只剩 810px 宽，丢掉 **57.8%** 画面；裁 9:16 只剩 608px 高，丢掉 **43.7%**。
+大字钩子必被切。所以各张共享同一套视觉基因（配色/幕底/主视觉/钩子文案），**各自重排一次版**：
 
-| 元素 | 16:9 版 | 3:4 版 |
-|---|---|---|
-| 悖论视觉 | 右侧，左右并置 | 上方，竖排堆叠 |
-| 钩子 | 左下，两行 132px | 下方，三行 118px |
-| 角标 | 左上 | 顶部居中 |
-| 每行字数 | ≤7 字（防孤字断行） | ≤5 字 |
+| 元素 | 16:9 版 | 3:4 版 | 9:16 版 |
+|---|---|---|---|
+| 悖论视觉 | 右侧，左右并置 | 上方，竖排堆叠 | 上段（10–45%），竖排堆叠 |
+| 钩子 | 左下，两行 132px | 下方，三行 118px | 中下段（50–88%），三行 150px |
+| 角标 | 左上 | 顶部居中 | 顶部居中（留 ≥180px 上边距） |
+| 每行字数 | ≤8 字（防孤字断行） | ≤8 字 | ≤6 字 |
+| 分裂线 | 右栏内横线 | 横贯（留边距） | 横贯（留边距），**不要竖线** |
 
-**封面三要素**（缺一返工）：① 大字钩子（≥96px/≥120px，含反差悬念）
-② 核心悖论视觉（两个对数 / 一升一降 / 分裂线 / 一明一暗，不是装饰图形）
-③ 信息余量（四边 ≥96px/≥110px，无贴边文字）。
+**9:16 专属纪律**：上边距 ≥180px、下边距 ≥160px（让开平台顶/底 UI 层，这是**不可裁区**）；
+**禁止左右两栏**（1080 宽里两栏必然放不下字）。
 
-做法：复制 `assets/cover-template.html` 为 `frames/cover_169.html` 与 `frames/cover_34.html`，
-各自排版 → `node scripts/cover_build.mjs .`（默认 seek 到时间轴末尾取完整态，`--at 0.8` 可取入场中间态）。
+**封面三要素**（缺一返工）：① 大字钩子（≥96px / ≥120px / ≥130px，含反差悬念）
+② 核心悖论视觉（两数对照 / 一升一降 / 分裂线 / 一明一暗，不是装饰图形）
+③ 信息余量（四边 ≥96px / ≥110px / 左右 ≥90px，无贴边文字）。
+
+做法：复制 `assets/cover-template.html` 为 `frames/cover_169.html`、`frames/cover_34.html`、
+`frames/cover_916.html`（竖版才要第三份），各自排版 → `node scripts/cover_build.mjs .`
+（默认 seek 到时间轴末尾取完整态，`--at 0.8` 可取入场中间态；缺哪张就跳哪张）。
+
+**出图后必跑几何实测** —— 肉眼只能看出明显问题，差 20px 的贴边、多出一字的孤行全靠它抓：
+
+```bash
+node <skill>/scripts/check_cover.mjs .              # 量三张：边距 / 钩子字号 / 行宽 / 孤字 / 9:16 禁两栏
+node <skill>/scripts/check_cover.mjs . --only 916   # 只量一张
+node <skill>/scripts/check_cover.mjs . --shot       # 顺手把 1x 预览图丢到 out/
+```
+
+它按 `tl.pause(tl.duration(), false)` 把页内时间轴 seek 到轴末再量（**必须量终态**，lessons #30），
+FAIL 清零才算封面过。退出码 0/1，可直接挂流水线。
+
 详规见 **`references/cover-guide.md`**。
 
 
@@ -178,7 +199,12 @@ node <skill>/scripts/peek_frame.mjs . <帧id> --at 100 --guides  # 叠十字中�
    - 用户明确说「你决定」「按你上一次的来」时才可以自行选择 —— 且要说明选了什么、为什么。
    - ⚠️ 反面教材：看到暖色题就默认 `--preset amber`、看到数据题就默认瑞士网格。
      记忆里"好用"的东西不构成用户的选择。
-1. **调研**（20 分钟，1 agent）：research/调研.md，每个数字带 URL；**确认点 1**（时长/语言）并行问
+1. **调研**（20 分钟，1 agent）：research/调研.md，每个数字带 URL；**确认点 1**（时长/语言 + **投放画幅与封面张数**）并行问
+
+   **确认点 1 顺带问一件事：封面要哪几张。** 默认 16:9 + 3:4 两张（横版投抖音/视频号）。
+   若用户会投**竖版**（竖版成片、全屏竖版信息流、小红书、朋友圈），要**再加 9:16 那张** ——
+   9:16 不是把 3:4 拉长，是另一种构图（左右并置必须改上下堆叠、上下边距让开平台 UI 层）。
+   现在问清，后面就不用返工；用户说「按默认」就只做两张。
 2. **解说词**（30 分钟）：narration.json（`|` 切字幕块，中文 ≤16 字/块）→ 填 order → **确认点 2**（文案定稿）→ **确认点 3**（配音方案 + 音色）→ tts/timeline/subs 三连 → 核对时长区间（差 >15% 改句子，别改语速硬凑）→ **定稿后不改词**
 
    **确认点 3 必须问两件事**（用 `tts_setup.py` 落实）：
@@ -209,9 +235,10 @@ node <skill>/scripts/peek_frame.mjs . <帧id> --at 100 --guides  # 叠十字中�
    ERROR 清零再进渲染（两条命令都是一秒级，比渲完几千帧再回来看便宜得多）。
 6. **打样**：`render_video.mjs . --preview 30` → **确认点 4**（风格/字号/语速/节奏一次定稿）→ 全片渲染 + qc_check
 7. **QC**：qc_report.md 的 FAIL 清零 + qc_sheet.jpg 肉眼过（字幕带 80–170px 无内容、一焦点、光跟主角）→ 按组修复 → 重渲
-8. **封面双方案**：做 `frames/cover_169.html` + `cover_34.html`（独立排版）→ `node scripts/cover_build.mjs .`
-   → 核对 `out/cover_report.md` + `references/cover-guide.md` 的七条自检清单
-9. **交付**：mp4 + 两张封面 + srt/vtt（上传平台=可检索文本）+ 发布说明（硬字幕→关平台自动字幕；
+8. **封面**：做 `frames/cover_169.html` + `cover_34.html`（独立排版；竖版投放再加 `cover_916.html`）
+   → `node scripts/cover_build.mjs .` → **`node scripts/check_cover.mjs .`**（量终态几何，FAIL 清零）
+   → 核对 `out/cover_report.md` + `references/cover-guide.md` 的自检清单
+9. **交付**：mp4 + 封面（默认两张，竖版三张）+ srt/vtt（上传平台=可检索文本）+ 发布说明（硬字幕→关平台自动字幕；
    AI 配音→勾 AIGC；封面文字须与视频首帧钩子同义；受监管题材过合规）
 
 ## ★ 画面出错怎么定位（用户报「几分几秒」，agent 直接落到那一帧）
@@ -274,7 +301,7 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 
 | 路径 | 作用 |
 |---|---|
-| `scripts/new_project.py` | 阶段 0 脚手架：建目录树 + `project.json` + `narration.json` 占位 + `theme.css` + 两份封面 HTML |
+| `scripts/new_project.py` | 阶段 0 脚手架：建目录树 + `project.json` + `narration.json` 占位 + `theme.css` + 两份封面 HTML（16:9 + 3:4；9:16 按投放需要自己加，注释里给了做法） |
 | `scripts/tts_setup.py` | **配音方案向导**：选 edge/火山 → 缺密钥则生成 `tts.env` 模板并停下 → 测连接 → 选音色 → 写回 project.json。输出 `NEXT_ACTION=…` 供 agent 判断下一步 |
 | `scripts/tts_volcano.py` | **火山引擎语音合成 2.0 接口包**：唯一读 `tts.env` 的地方；`--check` / `--voices` / `--synth`。密钥不回显、异常脱敏（`_redact`） |
 | `scripts/tts_build.py` | 配音合成：edge-tts **或** 火山引擎（`--provider`）；缓存/硬超时/退避重试/裁静音，manifest 写两级时长。两引擎 manifest 结构一致 |
@@ -284,7 +311,8 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 | `scripts/check_layout.mjs` | **渲染前几何体检**（终态）：侵入字幕禁区 / 出画 / 文字被遮挡 / 文字重叠 = ERROR；越安全边 / 文字压色块 / 色块重叠 = WARN；疑似未对齐 = INFO。量的是**字墨范围**（Range 逐行）而非元素框。`--only` / `--json` / `--safe-bottom`；有 ERROR 退出码 1 |
 | `scripts/render_video.mjs` | 渲染器：浏览器探测 → 逐场景 seek 截图 → ffmpeg 合成；`--preview N` 快样片，`--only <场景id>` 只重渲指定场景（**仅末场安全**，变短后须清尾部过期帧，见 lessons 45），`--mux-only` 用现有帧重新合成；**帧里有满幅照片就必须换截图模式**（默认 PNG 编码占 96% 帧时间且与并发无关）：`--png-fast` 无损 4.4×，`--jpeg --jpeg-quality 95` 13×；`--crf N` / `--preset <名>` 单独控制成片码率 |
 | `scripts/qc_check.py` | 流/时长/音量/抽帧体检 + contact sheet |
-| `scripts/cover_build.mjs` | 封面双方案渲染器：`width=1920/1440` 两份独立排版 → 2 倍图；`--at` / `--only` / `--jpg` |
+| `scripts/cover_build.mjs` | 封面渲染器：`169`(1920×1080) / `34`(1440×1080) / `916`(1080×1920) 各一份独立排版 → 2 倍图；`--at` / `--only` / `--jpg`；**缺哪张就跳哪张** |
+| `scripts/check_cover.mjs` | **封面终态几何实测器**：边距 / 钩子字号 / 钩子是否最大文字 / 行宽 / 孤字断行 / 9:16 禁左右两栏 / 越界；`--only` / `--json` / `--shot`；退出码 0/1 |
 
 **辅助工具**
 
@@ -307,11 +335,11 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 | `references/style-catalog.json` | 同上的机器可读版（`kf`/`multi`/`engine` 字段用于自动判类型） |
 | `references/template-guide.md` | 模板改编指南（rich 三步法 / gsap 重写法 / 挑风格建议） |
 | `references/frame-contract.md` | 契约细则 + 版式基因 + 反例 |
-| `references/cover-guide.md` | **封面双方案详规**：重排对照表 / 三要素 / 尺寸倍率 / 上传策略 / 七条自检 |
+| `references/cover-guide.md` | **封面详规**：一张还是几张 / 各画幅排版纪律 / 重排对照表 / 三要素 / 尺寸倍率 / 上传策略 / 自检清单 |
 | `references/workflow-guide.md` | 阶段详解 + agent prompt 模板 + 时长档位表 |
 | `references/lessons.md` | 踩坑台账（继承 14 条 + 本技能记录，持续追加） |
 | `assets/frame-template.html` | 场景模板（契约注释在文件头，B() 用法示例） |
-| `assets/cover-template.html` | **封面模板**（封面三要素注释在文件头，可改尺寸复用为两份） |
+| `assets/cover-template.html` | **封面模板**（封面三要素注释在文件头，可改尺寸复用为 16:9 / 3:4 / 9:16 各一份） |
 | `assets/gsap.min.js` | GSAP 3.13 本地内置（离线渲染；License 见同目录 `gsap-README.md`） |
 | `README.md` / `README.en.md` | 对外项目说明（**README.md 中文为默认**，`README.en.md` 英文；含跨 Agent 安装指引） |
 | `CONTRIBUTING.md` | 贡献指南：硬性规则、端到端自检、PR 清单 |
@@ -396,7 +424,7 @@ python scripts/qc_check.py --project . && node scripts/cover_build.mjs .
   （Apache-2.0）的模板设计规范转写而来，已保留署名；转写文本按 Apache-2.0 分发。
 - **方法论思路来源**：[Vincentwei1021/anything2explainer](https://github.com/Vincentwei1021/anything2explainer)
   （词边界字幕 / 两级时钟 / 语速标定 / QC 判据）。两者均为**他人独立项目，与本技能不是同一作者**。
-  确定性 seek 渲染器、`B()` 节拍锚定、封面双方案为本项目原创。
+  确定性 seek 渲染器、`B()` 节拍锚定、多画幅独立排版封面（16:9 / 3:4 / 9:16）为本项目原创。
 - **打包内置**：GSAP 3.13（GreenSock 标准「no charge」许可，见 `assets/gsap-README.md`）、
   playwright-core（Apache-2.0）。
 - 完整清单与逐条授权见 **`THIRD_PARTY_NOTICES.md`**。发布/再分发前请连同该文件一起带上。

@@ -7,7 +7,7 @@
 HTML 写画面 → 确定性逐帧渲染 → 真 MP4。全本地跑，核心链路零 API key、零按次计费。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.3.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](CHANGELOG.md)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-SKILL.md-8A2BE2.svg)](SKILL.md)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%9C%93-D97757.svg)](#安装)
 [![Codex](https://img.shields.io/badge/Codex-%E2%9C%93-000000.svg)](#安装)
@@ -181,7 +181,7 @@ API Key 只存在 `tts.env` 里，而且**只有技能里的一个接口包读�
 
 说一句需求，智能体会在一个**视频项目目录**里走完整个流水线；产物落在 `out/`：
 `slug.mp4`、`cover_169.png`、`cover_34.png`、`slug.srt`、`slug.vtt`，外加 `qc_report.md`
-与 `qc_sheet.jpg`。
+与 `qc_sheet.jpg`；做竖版投放时再加一张 `cover_916.png`。
 
 项目目录长这样：
 
@@ -222,7 +222,7 @@ CSS `transition` 入场）不可能工作，会被 `lint_frames.py` 直接拒绝
 | **密钥不进 agent、不进仓库** | 火山 API Key 只存 `tts.env`（已 gitignore），**只有接口包读它** —— agent 只调 `tts_volcano.py`，拿不到也不需读密钥。异常信息脱敏；`check_integrity.py` 有专门的密钥防线检查；打包排除密钥文件。 |
 | **两级时钟** | 帧长用 MP3 **容器时长**（保音画同步）；末块字幕按**语音真实结束**收尾。 |
 | **23 种画面风格** | 8 个类别，每种都记录了画布、字阶、时间轴与配色纪律。不用对着空白页从零设计。 |
-| **封面双方案** | 每条成片附带 16:9 与**独立重排**的 3:4 封面 —— 不是裁切，裁切会丢掉 57.8% 的画面宽度。 |
+| **封面多画幅** | 每条成片附 16:9 与**独立重排**的 3:4 封面（不是裁切 —— 裁切会丢掉 57.8% 的画面宽度）；竖版投放再加 9:16。`check_cover.mjs` 量终态几何把关。 |
 | **渲染前体检 + QC** | `lint_frames.py` 在渲染前报出契约违规；`qc_check.py` 查响度、时长漂移、抽帧速览。 |
 | **结构性离线** | GSAP 内置；浏览器自动探测；ffmpeg 缺失时回退到 `imageio-ffmpeg` 静态二进制；网络字体被契约禁止。 |
 
@@ -245,11 +245,13 @@ flowchart LR
     I --> J["ffmpeg<br/><i>H.264 + AAC 合成</i>"]
     J --> K[("out/slug.mp4")]
     I --> L["qc_check.py<br/><i>响度 · 漂移 · 抽帧速览</i>"]
-    K --> M["cover_build.mjs<br/><i>cover_169.png · cover_34.png</i>"]
+    K --> M["cover_build.mjs<br/><i>cover_169.png · cover_34.png · cover_916.png</i>"]
+    M --> N["check_cover.mjs<br/><i>终态几何实测</i>"]
 
     style K fill:#1f6feb,color:#fff
     style H fill:#8957e5,color:#fff
     style M fill:#238636,color:#fff
+    style N fill:#238636,color:#fff
 ```
 
 ---
@@ -293,20 +295,33 @@ tl.fromTo('.verdict', { scale: 0.8 },          { scale: 1, duration: 0.6 },     
 
 ---
 
-## 封面双方案
+## 封面多画幅
 
-每条成片产出**两张互为姊妹、而非裁切关系**的封面。从 16:9 居中裁 3:4，1920px 只剩 810px ——
-丢掉 57.8% 的画面宽度，任何横跨全宽的标题都会被切掉一半。所以两张共享同一套视觉基因，
+每条成片产出**互为姊妹、而非裁切关系**的封面。从 16:9 居中裁 3:4，1920px 只剩 810px ——
+丢掉 57.8% 的画面宽度，任何横跨全宽的标题都会被切掉一半。所以各画幅共享同一套视觉基因，
 但各自**重新排一次版**：
 
-| 元素 | 16:9（`1920×1080`） | 3:4（`1440×1080`） |
-|---|---|---|
-| 悖论视觉 | 右侧，左右并置 | 上方，竖排堆叠 |
-| 钩子 | 左下，两行，≥96px | 下方，三行，≥120px |
-| 每行字数上限 | 7 字 | 5 字 |
+| 元素 | 16:9（`1920×1080`） | 3:4（`1440×1080`） | 9:16（`1080×1920`） |
+|---|---|---|---|
+| 用途 | 信息流 / 播放页 | 主页栅格 | 竖版全屏 / 小红书 / 视频号竖版 |
+| 构型 | 左右并置 | 上方竖排堆叠 | 三段式，重心偏上 |
+| 钩子 | 左下，两行，≥96px | 下方，三行，≥120px | 中下，三行，≥130px |
+| 每行字数上限 | 8 字 | 8 字 | 6 字 |
+| 余量 | 四边 ≥96px | 四边 ≥110px | 上 ≥180px · 下 ≥160px · 左右 ≥90px |
 
-两个尺寸的输出都由 `new_project.py` 直接生成模板，默认出 2 倍图。完整规则与上传前自检清单：
-[`references/cover-guide.md`](references/cover-guide.md)。
+**默认出 16:9 + 3:4 两张；竖版投放再加 9:16** —— 加一张 `frames/cover_916.html` 即可，
+渲染器**缺哪张就跳哪张**。9:16 的上下边距是**「不可裁区」而不是「安全边距」**：顶部是账号与
+时长层、底部是标题栏与互动按钮，压上去等于自杀。
+
+模板由 `new_project.py` 生成，默认出 2 倍图。出图后跑一次**终态几何实测** —— 肉眼只能看出
+明显问题，差 20px 的贴边、多出一个字的孤行全靠它抓：
+
+```bash
+node scripts/cover_build.mjs .          # 渲染 → out/cover_{169,34,916}.png
+node scripts/check_cover.mjs .          # 边距 / 钩子字号 / 行宽 / 孤字 / 9:16 禁两栏
+```
+
+完整规则与上传前自检清单：[`references/cover-guide.md`](references/cover-guide.md)。
 
 ---
 
@@ -358,7 +373,7 @@ tl.fromTo('.verdict', { scale: 0.8 },          { scale: 1, duration: 0.6 },     
   转写自它的模板设计规范。其中 7 种又可追溯到 MIT 许可的设计作品。
   *差异*：它靠实时录制；本项目靠 seek 逐帧渲染，帧可复现。
 
-**本项目自己的部分**：确定性 seek 渲染器、`B()` 节拍锚定、封面双方案，以及
+**本项目自己的部分**：确定性 seek 渲染器、`B()` 节拍锚定、封面多画幅（含几何实测器），以及
 `lint_frames.py` / `qc_check.py` 的判据。完整的署名与逐风格对应关系见
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
 

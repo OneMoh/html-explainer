@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 /**
- * cover_build.mjs —— 封面双方案渲染器（抖音主封面 16:9 + 兼容 3:4）。
+ * cover_build.mjs —— 封面渲染器（多画幅，各一份独立排版）。
+ *   169 → 1920×1080  抖音主封面（信息流/播放页）
+ *    34 → 1440×1080  兼容主页 3:4 栅格（防切字）
+ *   916 → 1080×1920  竖版全屏 / 小红书 / 视频号竖版（三段式，上下让开平台 UI 层）
+ * ★ 默认出 169 + 34；竖版投放再加 916。**缺哪张封面帧就跳哪张**，不必三张都建。
+ * ★ 出图后务必跑 check_cover.mjs 量终态几何（边距/字号/行宽/孤字/9:16 禁两栏）。
  *
  * 【为什么不用裁切】
  *   成片是 16:9。从 16:9 居中裁 3:4，只能留 3/4 的宽（丢掉两侧各 12.5%）……
@@ -65,6 +70,15 @@ const SPECS = {
     width: 1440,
     height: 1080,
     note: '个人主页封面栅格按 3:4 裁 —— 独立排版，防切字',
+  },
+  '916': {
+    key: '916',
+    label: '竖版 9:16 · 全屏/竖版封面',
+    file: 'cover_916.html',
+    out: 'cover_916.png',
+    width: 1080,
+    height: 1920,
+    note: '抖音全屏竖版 / 小红书 / 视频号竖版封面 —— 独立排版（三段式），防上下切字',
   },
 };
 
@@ -219,8 +233,9 @@ async function main() {
   const present = specs.filter(s => fs.existsSync(path.join(projectDir, 'frames', s.file)));
   if (!present.length) {
     die(`frames/ 下没有封面帧。封面要**单独排版**（不是从成片抽帧、更不是裁切）——\n` +
-        `    复制 assets/cover-template.html 分别做两份：\n` +
-        specs.map(s => `      frames/${s.file}   → ${s.width}×${s.height}  ${s.label}`).join('\n'));
+        `    复制 assets/cover-template.html，按需做这几份：\n` +
+        specs.map(s => `      frames/${s.file}   → ${s.width}×${s.height}  ${s.label}`).join('\n') +
+        `\n    （只需出其中一份也可以；传了哪几份就渲哪几份）`);
   }
 
   let chromium;
@@ -252,22 +267,24 @@ async function main() {
 
   if (errors.length) die(`封面渲染失败：\n  ${errors.join('\n  ')}`);
 
-  // ---------- 自检：两张图的构图禁区 ----------
-  // 3:4 版本会被平台再裁，最要命的是「大字钩子贴边」——
+  // ---------- 自检：各画幅的构图禁区 ----------
+  // 3:4 / 9:16 版本会被平台再裁，最要命的是「大字钩子贴边」——
   // 这里只报尺寸与体积，几何禁区靠 out/cover_report.md 的人工清单（见 references/cover-guide.md）。
   const lines = [`# 封面自检 · ${pj.slug || 'video'}`, ''];
   for (const r of results) {
     const st = fs.statSync(r.outPath);
     lines.push(`- **${r.spec.label}** \`${path.basename(r.outPath)}\` ${r.spec.width}×${r.spec.height} · ${(st.size / 1024).toFixed(0)}KB · ${r.spec.note}`);
   }
-  lines.push('', '> 两份封面共享同一视觉基因、各自独立排版（不是裁切关系）。',
-    '> 上传前核对：① 大字钩子距四边 ≥ 96px ② 钩子在任何画幅下都不被切',
-    '> ③ 16:9 版主体偏左/右留出信息流裁切余量 ④ 封面文字与视频首帧钩子一致（观众预期）');
+  lines.push('', '> 各份封面共享同一视觉基因、各自独立排版（不是裁切关系）。',
+    '> 上传前核对：① 大字钩子距边 ≥96px（3:4 ≥110px；9:16 左右 ≥90px、且上边 ≥180px / 下边 ≥160px 让开平台 UI 层）',
+    '> ② 钩子在任何画幅下都不被切 ③ 16:9 版主体偏左/右留出信息流裁切余量',
+    '> ④ 封面文字与视频首帧钩子一致（观众预期） ⑤ 9:16 版的横排多列要改竖排堆叠（窄画幅放不下两栏）');
   const repPath = path.join(projectDir, 'out', 'cover_report.md');
   fs.writeFileSync(repPath, lines.join('\n'), 'utf-8');
   log(`✓ 自检：${repPath}`);
-  log(`★ 提醒：3:4 版是独立排版，上传时平台上选「竖版封面」；` +
-      `若平台只允许一张，用 3:4 版（多数主页栅格按 3:4 裁，16:9 会被切两侧）。`);
+  log(`★ 提醒：3:4 / 9:16 都是独立排版，上传时按画幅各选一次；` +
+      `若平台只允许一张、且主页栅格按 3:4 裁，用 3:4 版（16:9 会被切两侧）；` +
+      `竖版视频/全屏场景用 9:16 版。`);
 }
 
 main().catch(e => die(e.stack || String(e)));

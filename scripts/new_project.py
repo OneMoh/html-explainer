@@ -83,8 +83,13 @@ def main() -> int:
     open(os.path.join(proj, "frames", "_template.html"), "w", encoding="utf-8", newline="\n").write(
         tpl.replace("TEMPLATE_ID.beats.js", "_template.beats.js"))
 
-    # 封面模板两份：直接建进 frames/，用户改内容即可（默认写在 cover_169/cover_34 下）
-    # —— 起始尺寸已按目标画幅设好，只改文案与构型
+    # 封面模板：默认两份（16:9 主封面 + 3:4 主页栅格兼容），直接建进 frames/，用户改内容即可。
+    # —— 起始尺寸已按目标画幅设好，只改文案与构型。
+    # —— 竖版投放（9:16 成片 / 小红书 / 视频号竖版）再加第三份，照下面一行做：
+    #      open(...,'frames/cover_916.html').write(cover_src.replace(
+    #          "1920px; height: 1080px", "1080px; height: 1920px"))
+    #    （9:16 必须重排版式：左右并置改上下堆叠、上边距 ≥180px、下边距 ≥160px，
+    #     详规见 references/cover-guide.md 的「C. 1080×1920」）
     cover_src = open(os.path.join(SKILL_ROOT, "assets", "cover-template.html"), encoding="utf-8").read()
     open(os.path.join(proj, "frames", "cover_169.html"), "w", encoding="utf-8", newline="\n").write(
         cover_src.replace("1920px; height: 1080px", "1920px; height: 1080px"))
@@ -159,14 +164,16 @@ Logo 收尾、东方柔和有机、VFX 文字光标…），每种含画布/字�
 7. 渲染：node <skill>/scripts/render_video.mjs . [--preview 30]
 8. QC：python <skill>/scripts/qc_check.py --project .
 
-## ★ 封面双方案（成片后必做）
-复制 `assets/cover-template.html` 做**两份独立排版**的封面：
+## ★ 封面（成片后必做）
+默认出**两张独立排版**的封面：
   frames/cover_169.html  1920x1080  -> 抖音主封面（信息流/播放页）
   frames/cover_34.html   1440x1080  -> 兼容主页 3:4 栅格（防切字）
-**不是裁切关系**：16:9 裁 3:4 会丢掉 57.8% 的画面宽度，大字钩子必被切。
-两份共享配色/主视觉/钩子文案，但各自重排（悖论视觉从右侧并置改成上方竖排、
-钩子从两行改成三行）。详规见 `<skill>/references/cover-guide.md`。
-渲染：node <skill>/scripts/cover_build.mjs .
+**竖版投放再加第三张** frames/cover_916.html（1080x1920，竖版全屏信息流 / 小红书 / 视频号竖版）。
+**不是裁切关系**：16:9 裁 3:4 丢掉 57.8% 画面宽、裁 9:16 丢掉 43.7% 画面高，大字钩子必被切。
+各张共享配色/主视觉/钩子文案，但各自重排（悖论视觉从右侧并置改成上方竖排、
+钩子从两行改成三行；9:16 还要把上边距让到 >=180px、下边距 >=160px、禁止左右两栏）。
+详规见 `<skill>/references/cover-guide.md`。
+渲染（缺哪张跳过哪张）：node <skill>/scripts/cover_build.mjs .
 
 主题：{args.topic or args.preset or 'violet'}（make_theme.py --topic ... --use 可换）
 """

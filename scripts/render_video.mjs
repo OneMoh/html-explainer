@@ -76,6 +76,34 @@ function parseArgs(argv) {
   return a;
 }
 
+// ---------- 托管 python 探测（PATH 上没有 python 时的兜底） ----------
+// ~/.workbuddy/binaries/python/envs/<名>/Scripts/python.exe （Windows venv）
+// ~/.workbuddy/binaries/python/envs/<名>/bin/python         （POSIX venv）
+// ~/.workbuddy/binaries/python/versions/<ver>/python.exe    （Windows 托管解释器）
+// ~/.workbuddy/binaries/python/versions/<ver>/bin/python    （POSIX 托管解释器）
+function findManagedPythons(isWin) {
+  const home = process.env.USERPROFILE || process.env.HOME || '';
+  if (!home) return [];
+  const roots = [
+    path.join(home, '.workbuddy', 'binaries', 'python', 'envs'),
+    path.join(home, '.workbuddy', 'binaries', 'python', 'versions'),
+  ];
+  const found = [];
+  for (const root of roots) {
+    let dirs = [];
+    try { dirs = fs.readdirSync(root); } catch { continue; }
+    for (const d of dirs) {
+      const cands = isWin
+        ? [path.join(root, d, 'Scripts', 'python.exe'), path.join(root, d, 'python.exe')]
+        : [path.join(root, d, 'bin', 'python'), path.join(root, d, 'bin', 'python3')];
+      for (const p of cands) {
+        if (fs.existsSync(p)) { found.push(p); break; }
+      }
+    }
+  }
+  return found;
+}
+
 // ---------- ffmpeg 解析（PATH → imageio-ffmpeg 静态二进制） ----------
 function resolveFfmpeg() {
   if (process.env.FFMPEG_PATH && fs.existsSync(process.env.FFMPEG_PATH)) return process.env.FFMPEG_PATH;
@@ -87,7 +115,9 @@ function resolveFfmpeg() {
     try { if (fs.existsSync(p)) return p; } catch { /* ignore */ }
   }
   // 回退：问 python 的 imageio_ffmpeg 要（WorkBuddy 托管 venv 里有静态 ffmpeg）
-  const pyCandidates = [process.env.PY, 'python3', 'python'].filter(Boolean);
+  // ★ 很多环境下 PATH 上根本没有 python（只有托管 venv），所以先主动扫一遍托管目录，
+  //   否则这一步会静默落空、只报「找不到 ffmpeg」。
+  const pyCandidates = [process.env.PY, ...findManagedPythons(isWin), 'python3', 'python'].filter(Boolean);
   for (const py of pyCandidates) {
     try {
       const out = execFileSync(py, ['-c', 'import imageio_ffmpeg;print(imageio_ffmpeg.get_ffmpeg_exe())'],

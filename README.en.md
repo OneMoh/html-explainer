@@ -8,7 +8,7 @@ Write scenes in HTML → deterministic frame-by-frame rendering → a real MP4. 
 locally; the core pipeline needs no API key and charges no per-render fee.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.3.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](CHANGELOG.md)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-SKILL.md-8A2BE2.svg)](SKILL.md)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%9C%93-D97757.svg)](#install)
 [![Codex](https://img.shields.io/badge/Codex-%E2%9C%93-000000.svg)](#install)
@@ -196,7 +196,7 @@ Copy it, then fill the copy.
 
 Say one sentence and the agent walks the whole pipeline inside a **video project directory**;
 output lands in `out/`: `slug.mp4`, `cover_169.png`, `cover_34.png`, `slug.srt`, `slug.vtt`, plus
-`qc_report.md` and `qc_sheet.jpg`.
+`qc_report.md` and `qc_sheet.jpg`; add `cover_916.png` for vertical placements.
 
 A **video project** looks like this:
 
@@ -241,7 +241,7 @@ The trade-off: **every animation must be seekable.** Wall-clock animation (`setI
 | **The API key never reaches the agent or the repo** | The Volcano key lives only in `tts.env` (gitignored) and **only the interface package reads it** — the agent calls `tts_volcano.py` and never needs the key. Errors are redacted, `check_integrity.py` enforces a secret guard, and packaging excludes key files. |
 | **Two-level clock** | Frame length uses MP3 **container duration** (keeps A/V in sync); the final subtitle block ends on **actual speech end**. |
 | **23 visual styles** | 8 categories, each with its canvas, type scale, timeline and colour discipline recorded. No designing from a blank page. |
-| **Dual covers** | Every video ships a 16:9 cover plus an **independently re-laid-out** 3:4 cover — not a crop. Cropping loses 57.8% of the width. |
+| **Multi-format covers** | Every video ships a 16:9 cover plus an **independently re-laid-out** 3:4 cover — not a crop. Cropping loses 57.8% of the width; add 9:16 for vertical placements. `check_cover.mjs` measures final-state geometry. |
 | **Pre-render audit + QC** | `lint_frames.py` reports contract violations before you spend render time; `qc_check.py` checks loudness, drift and samples frames. |
 | **Structurally offline** | GSAP vendored; browser auto-detected; ffmpeg falls back to the `imageio-ffmpeg` static binary; web fonts are banned by contract. |
 
@@ -264,11 +264,13 @@ flowchart LR
     I --> J["ffmpeg<br/><i>H.264 + AAC mux</i>"]
     J --> K[("out/slug.mp4")]
     I --> L["qc_check.py<br/><i>loudness, drift, contact sheet</i>"]
-    K --> M["cover_build.mjs<br/><i>cover_169.png, cover_34.png</i>"]
+    K --> M["cover_build.mjs<br/><i>cover_169.png, cover_34.png, cover_916.png</i>"]
+    M --> N["check_cover.mjs<br/><i>final-state geometry</i>"]
 
     style K fill:#1f6feb,color:#fff
     style H fill:#8957e5,color:#fff
     style M fill:#238636,color:#fff
+    style N fill:#238636,color:#fff
 ```
 
 ---
@@ -317,20 +319,35 @@ Rotate 2–4 styles per project. Eight scenes sharing one look reads as monotono
 
 ---
 
-## Dual covers
+## Multi-format covers
 
-Every video ships **two covers that are siblings, not crops**. Cropping 16:9 to 3:4 leaves 810px of
-1920px — **57.8% of the width is gone**, and any full-width headline gets sliced in half. So both
-share one visual DNA, but each is **laid out again from scratch**:
+Every video ships **covers that are siblings, not crops**. Cropping 16:9 to 3:4 leaves 810px of
+1920px — **57.8% of the width is gone**, and any full-width headline gets sliced in half. So all
+formats share one visual DNA, but each is **laid out again from scratch**:
 
-| Element | 16:9 (`1920×1080`) | 3:4 (`1440×1080`) |
-|---|---|---|
-| Paradox visual | Right side, side by side | Top, stacked vertically |
-| Hook | Bottom-left, two lines, ≥96px | Bottom, three lines, ≥120px |
-| Max characters per line | 7 | 5 |
+| Element | 16:9 (`1920×1080`) | 3:4 (`1440×1080`) | 9:16 (`1080×1920`) |
+|---|---|---|---|
+| Use | Feed / watch page | Profile grid | Full-screen vertical / RedNote / WeChat Channels |
+| Layout | Side by side | Top, stacked vertically | Three bands, weight high |
+| Hook | Bottom-left, two lines, ≥96px | Bottom, three lines, ≥120px | Lower-middle, three lines, ≥130px |
+| Max characters per line | 8 | 8 | 6 |
+| Margins | 96px all round | 110px all round | top ≥180px · bottom ≥160px · sides ≥90px |
 
-`new_project.py` generates the templates for both sizes directly; output is 2× by default. Full
-rules and the pre-upload checklist: [`references/cover-guide.md`](references/cover-guide.md)
+**16:9 + 3:4 ship by default; add 9:16 for vertical placements** — just add
+`frames/cover_916.html`; the builder **skips any format whose frame is missing**. On 9:16 the top
+and bottom margins are **reserved zones, not safety margins**: the top carries the account/duration
+layer, the bottom the title bar and action buttons.
+
+Templates are generated by `new_project.py`; output is 2× by default. After rendering, run the
+**final-state geometry check** — the eye only catches blatant problems, while a 20px bleed or a
+one-character orphan line does not:
+
+```bash
+node scripts/cover_build.mjs .          # → out/cover_{169,34,916}.png
+node scripts/check_cover.mjs .          # margins / hook size / line width / orphans / no two columns on 9:16
+```
+
+Full rules and the pre-upload checklist: [`references/cover-guide.md`](references/cover-guide.md)
 (Chinese).
 
 ---
@@ -390,8 +407,9 @@ design specification and engineering experience.
   *Difference:* it relies on real-time recording; this project seeks frame by frame, so output is
   reproducible.
 
-**This project's own parts:** the deterministic seek renderer, `B()` beat anchoring, the dual-cover
-system, and the criteria in `lint_frames.py` / `qc_check.py`. Full attribution and the per-style
+**This project's own parts:** the deterministic seek renderer, `B()` beat anchoring, the
+multi-format cover system (and its geometry checker), and the criteria in `lint_frames.py` /
+`qc_check.py`. Full attribution and the per-style
 mapping are in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) (Chinese).
 
 If you want React component animation or Studio-style visual collaboration, go straight to the two
