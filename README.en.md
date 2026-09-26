@@ -8,7 +8,7 @@ Write scenes in HTML → deterministic frame-by-frame rendering → a real MP4. 
 locally; the core pipeline needs no API key and charges no per-render fee.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.1-blue.svg)](CHANGELOG.md)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-SKILL.md-8A2BE2.svg)](SKILL.md)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%9C%93-D97757.svg)](#install)
 [![Codex](https://img.shields.io/badge/Codex-%E2%9C%93-000000.svg)](#install)

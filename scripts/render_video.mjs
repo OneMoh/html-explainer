@@ -308,16 +308,34 @@ async function main() {
   const renderSec = preview != null ? preview : totalSec;
   const totalFrames = Math.max(1, Math.round(renderSec * fps));
 
-  // 各场景的全局起止帧（累计舍入，保证全局对齐）
+  // 各场景的全局起止帧
+  // ★ 帧号边界必须**构造性无缝**：先按累计时间一次算好每场起点，再令第 i 场的终点帧
+  //   直接等于第 i+1 场的起点帧（末场封到 totalFrames）。
+  //   旧写法把 gfEnd 用 `(cursorSec + dur + gap)` 现场重算，而下一轮的 gf 用的是**累计后**
+  //   的 cursorSec —— 同一时间点在浮点上可能差一个 ULP，舍入后正好差 1：
+  //       gfEnd_ai_hw = round(221.5499…*30) = 6646
+  //       gf_layout   = round(221.5500…*30) = 6647   → 6647 谁都不写
+  //   于是相邻场景之间**漏 1 帧**（或反过来重 1 帧）。漏 1 帧的后果不只是目录不齐：
+  //   image2 解复用器遇缺号即停止解码，而 -t 仍把容器时长写成全长 → 成片中段断流。
+  //   （实例：2026-09 小米/华为那期，21 个边界里中了 1 个 → f_006647 无人认领，
+  //     后 150s 无画面，且 ffmpeg 退出码为 0。见 references/lessons.md。）
+  const sceneStarts = [];
+  {
+    let c = 0;
+    for (const id of order) {
+      sceneStarts.push(c);
+      c += (layout[id]?.duration_sec || 0) + (pj.gap || 0);
+    }
+  }
   const scenes = [];
-  let cursorSec = 0;
-  for (const id of order) {
+  for (let i = 0; i < order.length; i++) {
+    const id = order[i];
     const dur = layout[id]?.duration_sec || 0;
-    const gf = Math.round(cursorSec * fps);
-    const gfEnd = Math.min(totalFrames, Math.round((cursorSec + dur + (pj.gap || 0)) * fps));
+    const gf = Math.round(sceneStarts[i] * fps);
+    const boundary = i + 1 < order.length ? Math.round(sceneStarts[i + 1] * fps) : totalFrames;
+    const gfEnd = Math.min(totalFrames, boundary);
     const n = Math.max(0, gfEnd - gf);
-    if (n > 0) scenes.push({ id, gf, n, globalStart: cursorSec, dur });
-    cursorSec += dur + (pj.gap || 0);
+    if (n > 0) scenes.push({ id, gf, n, globalStart: sceneStarts[i], dur });
   }
 
   const framesDir = path.join(projectDir, 'render', 'frames');
@@ -453,12 +471,46 @@ async function main() {
     log(`截图完成：${doneFrames} 帧，耗时 ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   }
 
+  // ---------- 帧完整性闸门（合成前） ----------
+  // ★ 为什么必须有：image2 解复用器碰到缺号会打印 I/O error 并**停止解码**，
+  //   而命令行里的 `-t <renderSec>` 仍会把容器时长写成全长，ffmpeg 退出码还是 0。
+  //   于是产出「标题写 6:11、实际只有 3:41 有画面、其后全是静帧/黑场」的坏片，
+  //   且整条流水线一路绿灯 —— 属于典型的**静默失败**，肉眼抽查几帧也发现不了。
+  //   （实例：2026-09 小米/华为那期，f_006647 丢失 → 后 150s 无画面。）
+  //   qc_check.py 的「帧数实测」也能抓到这个（lessons #57），但那是**成片之后**；
+  //   本闸门提前到合成之前，且直接点名缺在哪个场景、该跑哪条 --only 命令。
+  const ext = args.jpeg ? 'jpg' : 'png';
+  {
+    const missing = [];
+    for (const sc of scenes) {
+      for (let i = 0; i < sc.n; i++) {
+        const n = sc.gf + i + 1;
+        if (!fs.existsSync(path.join(framesDir, `f_${String(n).padStart(6, '0')}.${ext}`)))
+          missing.push({ n, id: sc.id });
+      }
+    }
+    // 预演模式（--preview）允许帧目录里有全片帧，只核对本次渲染范围
+    if (missing.length) {
+      const byScene = new Map();
+      for (const m of missing) {
+        if (!byScene.has(m.id)) byScene.set(m.id, []);
+        byScene.get(m.id).push(m.n);
+      }
+      const self = path.basename(fileURLToPath(import.meta.url));
+      die(`帧不完整：缺 ${missing.length} 帧，拒绝合成。\n` +
+        `  （若不拦，会得到「容器标称 ${renderSec.toFixed(2)}s、实际中途断流」的坏片，且 ffmpeg 退出码为 0）\n` +
+        [...byScene.entries()].map(([id, ns]) =>
+          `  场景 ${id}：缺 ${ns.length} 帧 → ${ns.slice(0, 6).join(', ')}${ns.length > 6 ? ' …' : ''}`).join('\n') +
+        `\n  修补：node ${self} <projectDir> --only ${[...byScene.keys()].join(',')}`);
+    }
+    log(`帧完整性 ✓ ${totalFrames}/${totalFrames} 帧齐备`);
+  }
+
   // ---------- ffmpeg 合成 ----------
   const audioPath = path.join(projectDir, 'audio', 'narration-full.mp3');
   const hasAudio = fs.existsSync(audioPath);
-  const ext = args.jpeg ? 'jpg' : 'png';
   const cmd = [
-    '-hide_banner', '-loglevel', 'error', '-y',
+    '-hide_banner', '-loglevel', 'error', '-xerror', '-y',
     '-framerate', String(fps), '-i', path.join(framesDir, `f_%06d.${ext}`),
   ];
   if (hasAudio) cmd.push('-i', audioPath);

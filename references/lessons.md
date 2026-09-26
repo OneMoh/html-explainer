@@ -938,3 +938,48 @@
     这样「6.02」这类悖论数字不会被当成钩子。附带一条实用降级：
     **纯数字比钩子大 → 只提醒（上限 钩子×1.35）；文字比钩子大 → 才 FAIL**
     （cover-guide 的 16:9 一栏本就写明"数字可到 140–160px"，数字压过钩子有时是刻意的）。
+
+86. **★★（2026-09-26 实战踩到）场景帧号边界必须「构造性无缝」，否则相邻场景之间**漏 1 帧**——
+    而它的后果是成片**中段断流**，不是"少一格"那么轻。**
+    旧写法在算 `gfEnd` 时用 `Math.round((cursorSec + dur + gap) * fps)` **现场重算**，
+    而下一轮的 `gf` 用的是**累计后**的 `cursorSec`。同一时间点在 float64 上可能差 1 个 ULP：
+    ```js
+    // 小米/华为那期（11,146 帧 / 22 场）：
+    gfEnd_ai_hw = Math.round(221.5499… * 30) = 6646
+    gf_layout   = Math.round(221.5500… * 30) = 6647     // ← 6647 谁都不写
+    ```
+    21 个边界里中了 1 个。**连锁反应**（这是真正致命的地方）：
+    · 截图阶段 `doneFrames` 只到 11145（少 1），但**每一场的日志都报齐**，看不出异常；
+    · `image2` 解复用器碰到缺号 → 打印 I/O error 并**停止解码**；
+    · 而命令行里的 `-t <renderSec>` 仍把**容器时长写成全长**，`ffmpeg` **退出码还是 0**；
+    · 产物：`Duration: 00:06:11.54` 看起来完全正常，实际视频流只有 **6646 帧 = 3:41.5**，
+      后 150 秒无画面。属于典型**静默失败**，肉眼抽查几帧也发现不了。
+    **修复（已落地）**：先一次算好每场起点，令第 i 场的终点帧 = 第 i+1 场的起点帧：
+    ```js
+    const sceneStarts = []; { let c = 0; for (const id of order) { sceneStarts.push(c); c += (layout[id]?.duration_sec||0) + (pj.gap||0); } }
+    const gf    = Math.round(sceneStarts[i] * fps);
+    const boundary = i + 1 < order.length ? Math.round(sceneStarts[i+1] * fps) : totalFrames;
+    const gfEnd = Math.min(totalFrames, boundary);
+    ```
+    判别式：`Σ n === totalFrames` **且** `set(gf+1 … gfEnd)` 无缺无重（本例修复后 11146/11146 ✓）。
+    **同时加了两道闸门**：① 合成前逐号核对帧文件，缺帧 `die` 并指名场景 + 打印可用的
+    `--only <id>` 命令（先于 mux，省掉一次 26 分钟的无效合成）；② ffmpeg 加 `-xerror`，
+    让解复用/解码错误变成非零退出，而不是静默出片。
+    **怎么验成片有没有断流**：`ffmpeg -i out/x.mp4 -map 0:v:0 -f null -` 看末尾 `frame=`，
+    必须等于 `layout.json` 的 `total_frames`。**只看 `Duration` 会被音轨骗**
+    （容器时长由 `-t` 与 apad 音轨决定）—— 这正是脚本 `qc_check.py` 第 ② 项之外、
+    第 148 行「帧数实测」要单独存在的原因（lessons #57）。
+    **一条排查纪律**：复算场景边界**不要用 Python 的 `round()`** —— 它是银行家舍入，
+    而 JS `Math.round` 是 `floor(x+0.5)`，两者在 `.5` 处差一格，会把缺帧**定位到错误的场景**。
+    本次就因此白跑了一次 `--only layout` 重渲（真凶是 `ai_hw`）。要用就写
+    `math.floor(x + 0.5)`，或直接读渲染日志里每场实际的帧数反推。
+
+87. **★（2026-09-26）`--only <单场>` 时并发会退化成 1，补帧要显式加 `--png-fast`。**
+    `const conc = Math.max(1, Math.min(args.concurrency || 3, queue.length))`
+    —— 队列里只有 1 个场景时 `conc = 1`，**没有多 worker 摊薄固定开销**。
+    实测同一台机（Ryzen 7 7735HS）：
+    · 默认 playwright PNG 单 worker ≈ 0.9–1.2 帧/秒 → 636 帧要 **9 分钟以上**；
+    · `--png-fast`（CDP `optimizeForSpeed`）**9.4 帧/秒** → 636 帧 **约 70 秒**，且逐像素无损。
+    所以「补一场帧」这类小修，**默认就该带 `--png-fast`**。
+    注意帧文件体积会 +22%（本例 682KB → 816KB），但 PNG 依旧无损，
+    与全片其余默认模式渲出的帧**像素一致**，可以安全混在同一套帧序列里。
