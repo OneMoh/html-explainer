@@ -20,21 +20,13 @@ locally; the core pipeline needs no API key and charges no per-render fee.
 
 <br/>
 
-Three finished videos made with this skill — visuals, voiceover, subtitles and covers all
+Two finished videos made with this skill — visuals, voiceover, subtitles and covers all
 produced by the pipeline, no manual post-production. Covers and other assets live in a separate
 [demos repository](https://github.com/OneMoh/html-explainer-demos); this repo stays text-only.
-
-https://github.com/user-attachments/assets/912e6c2d-831f-43dd-a39f-57b749bb417d
 
 | HK innovative drugs · early session | A quant firm built an LLM |
 |---|---|
 | https://github.com/user-attachments/assets/8007843c-088d-457c-8550-81ec912e0add | https://github.com/user-attachments/assets/28949988-449b-4c4e-8d0f-6706af6f64ee |
-
-**Follow the test accounts — watch the video stats in real time**
-
-| Douyin · OnlyOneMoh | Profile · Moen | Douyin · Moen_xin |
-|---|---|---|
-| <img src="https://raw.githubusercontent.com/OneMoh/html-explainer-demos/main/images/douyin-qr-moh-onlyonemoh.jpg" width="240"> | <img src="https://raw.githubusercontent.com/OneMoh/html-explainer-demos/main/images/douyin-profile-moen.jpg" width="240"> | <img src="https://raw.githubusercontent.com/OneMoh/html-explainer-demos/main/images/douyin-qr-moenxin.jpg" width="240"> |
 
 </div>
 
