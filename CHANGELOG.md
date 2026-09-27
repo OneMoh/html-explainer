@@ -488,6 +488,7 @@
 - 23 种画面风格目录，8 个类别，按改编成本分类。
 - `setup_env.sh` 做首次环境自检，`--install` 装缺失依赖；`package_skill.py` 打可移植 zip。
 
+[1.4.2]: https://github.com/OneMoh/html-explainer/releases/tag/v1.4.2
 [1.4.1]: https://github.com/OneMoh/html-explainer/releases/tag/v1.4.1
 [1.4.0]: https://github.com/OneMoh/html-explainer/releases/tag/v1.4.0
 [1.3.2]: https://github.com/OneMoh/html-explainer/releases/tag/v1.3.2
