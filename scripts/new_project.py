@@ -110,10 +110,16 @@ window.__BEATS__ = [
 window.__SEG__ = { id: "_template", duration: 9.0, speech_end: 8.2, tail: 0.8 };
 (function () {
   var B = window.__BEATS__;
+  function norm(s) {
+    // 小数点不是标点：先护住「数字.数字」，去完标点再还原，否则 B('2.4%') 会被削成 '24%'。
+    return String(s || '').replace(/(\\d)\\.(\\d)/g, '$1\\u0000$2')
+      .replace(/[\\s，。、！？；：,.!?;:|]/g, '')
+      .replace(/\\u0000/g, '.');
+  }
   function find(text) {
-    var t = String(text || '').replace(/[\\s，。、！？；：,.!?;:|]/g, '');
+    var t = norm(text);
     for (var i = 0; i < B.length; i++) {
-      var bt = B[i].text.replace(/[\\s，。、！？；：,.!?;:|]/g, '');
+      var bt = norm(B[i].text);
       if (bt === t || bt.indexOf(t) === 0 || t.indexOf(bt) === 0) return B[i];
     }
     throw new Error('B() 找不到节拍: ' + text);

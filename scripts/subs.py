@@ -12,7 +12,8 @@ subs.py —— 字幕三出口 + 节拍器 beats.js。
   ③ 两级时钟：段长用容器时长（音画同步），末块收尾用语音真实结束
      （speech_end_sec，裁后坐标系）—— 混用会「字幕过了语音还没过」
   ④ 停留重分配：按真实语速比例 + 每块 ≥0.6s（water-filling）
-  ⑤ 屏幕文本去句读标点（标点只驱动 TTS 停顿，不上画面）
+  ⑤ 屏幕文本去句读标点（标点只驱动 TTS 停顿，不上画面）；
+     **唯独数字内部的小数点要留** —— 2.4% 削成 24% 是差一个数量级的假数字
 
 【本技能新增】beats.js 节拍器 —— 把每块的本地秒写进 frames/<id>.beats.js，
 场景 HTML 里用 B('文本') 拿到该词的起播秒，画面节拍直接对齐吐字节拍。
@@ -127,7 +128,24 @@ def auto_split(text: str, budget=None):
     return out or [text]
 
 
-_PUNCT_RE = re.compile(r'[\s，。、！？：；“”（）,.!?:;()\-—…·|]')
+def is_decimal_point(s: str, i: int) -> bool:
+    """s[i] 是不是「数字内部的小数点」？左右各需一个数字（2.4 / 1.5 / 3.14）。
+
+    去标点是为了 TTS 不被截断、画面不被句读打断；但小数点不是句读，它是数字的
+    一部分 —— 删掉它「2.4%」会变成「24%」，屏幕文本就撒谎了（数字差 10 倍）。
+    """
+    if i < 0 or i >= len(s) or s[i] != '.':
+        return False
+    if i == 0 or i == len(s) - 1:
+        return False
+    return s[i - 1].isdigit() and s[i + 1].isdigit()
+
+
+# 小数点两侧都是数字时不能删；其余位置（句末、缩略、省略）照删。
+# 注意 `.` 不能留在字符类里，否则一定被吃掉。
+# 注意断言的**位置**：`X(?<!\d)` 断言的是 X 右边的字符，不是左边。要判「点的左边」
+# 必须把断言写在点之前（写反了不会报错，只会静默失效）。
+_PUNCT_RE = re.compile(r'[\s，。、！？：；“”（）,!?;:()\-—…·|]|(?<!\d)\.|(?<=\d)\.(?!\d)')
 
 
 def chunk_starts(tts_text, chunks, words, lead_cut):
@@ -180,8 +198,13 @@ _DROP_PUNCT = set('，。！？；：,.!?;:、·|｜')
 
 
 def clean_sub_text(s: str, lang: str = 'zh') -> str:
+    """屏幕文本：去句读标点（标点只驱动 TTS 停顿，不上画面）。
+
+    唯一例外：数字内部的小数点（2.4%）保留 —— 它属于数字本身，
+    删掉会让画面显示的数字与念出来的差一个数量级。
+    """
     out = []
-    for ch in s:
+    for i, ch in enumerate(s):
         if ch in _KEEP_CHARS:
             out.append(ch); continue
         if ch in _TO_SPACE:
@@ -189,6 +212,8 @@ def clean_sub_text(s: str, lang: str = 'zh') -> str:
                 out.append(' ')
             continue
         if ch in _DROP_PUNCT:
+            if is_decimal_point(s, i):
+                out.append(ch)
             continue
         out.append(ch)
     t = re.sub(r'\s{2,}', ' ', ''.join(out)).strip()
@@ -245,10 +270,16 @@ window.__BEATS__ = __BEATS_DATA__;
 window.__SEG__ = __SEG_DATA__;
 (function () {
   var B = window.__BEATS__;
+  function norm(s) {
+    // 小数点不是标点：先护住「数字.数字」，去完标点再还原，否则 B('2.4%') 会被削成 '24%'。
+    return String(s || '').replace(/(\\d)\\.(\\d)/g, '$1\\u0000$2')
+      .replace(/[\\s，。、！？；：,.!?;:|]/g, '')
+      .replace(/\\u0000/g, '.');
+  }
   function find(text) {
-    var t = String(text || '').replace(/[\\s，。、！？；：,.!?;:|]/g, '');
+    var t = norm(text);
     for (var i = 0; i < B.length; i++) {
-      var bt = B[i].text.replace(/[\\s，。、！？；：,.!?;:|]/g, '');
+      var bt = norm(B[i].text);
       if (bt === t || bt.indexOf(t) === 0 || t.indexOf(bt) === 0) return B[i];
     }
     throw new Error('B() 找不到节拍: ' + text);

@@ -297,10 +297,16 @@ def _opener() -> urllib.request.OpenerDirector:
 
 
 def split_long_text(text: str, limit: int = MAX_TEXT_LEN) -> list[str]:
-    """按标点切分到 <=limit 字，保证不把一个词从中间劈开。"""
+    """按标点切分到 <=limit 字，保证不把一个词从中间劈开。
+
+    小数点不是句读：先把「数字.数字」护起来再切，否则 2.4% 会被劈成两个请求，
+    语音中间凭空多一个硬停顿（同一句话被读成两段）。
+    """
     if len(text) <= limit:
         return [text]
-    parts = re.split(r"(?<=[。！？；，、,.!?;：:\n])", text)
+    guard = '\x00'
+    masked = re.sub(r'(?<=\d)\.(?=\d)', guard, text)
+    parts = re.split(r"(?<=[。！？；，、,.!?;：:\n])", masked)
     out: list[str] = []
     for p in parts:
         if not p:
@@ -312,7 +318,8 @@ def split_long_text(text: str, limit: int = MAX_TEXT_LEN) -> list[str]:
         else:                                  # 单句仍超长 → 硬切
             for i in range(0, len(p), limit):
                 out.append(p[i:i + limit])
-    return [s for s in out if s.strip()] or [text]
+    res = [s.replace(guard, '.') for s in out if s.strip()]
+    return res or [text]
 
 
 def _one_request(text: str, voice: str, cred: dict[str, str], rate: int,

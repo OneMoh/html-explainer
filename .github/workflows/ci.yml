@@ -60,6 +60,15 @@ jobs:
         shell: bash
         run: bash -n setup_env.sh
 
+      # --- 文本规则回归：去句读标点，但小数点不是标点 ---
+      # 这条不变式有五个出口（屏幕字幕 / SRT / B() 节拍 / 火山切句 / subs.json），
+      # 任何一处削掉小数点，屏幕上就会出现「念 2.4%、写 24%」的假数字，且不报错。
+      - name: Subtitle text rules regression test
+        run: python tests/test_subs_text.py
+
+      - name: Beats matcher regression test
+        run: node tests/test_beats_norm.mjs
+
       # --- 渲染器 / 封面器 / 单帧速览工具的语法 ---
       - name: Check Node module syntax
         shell: bash
