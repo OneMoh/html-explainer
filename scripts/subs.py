@@ -262,7 +262,12 @@ def tc(frame: int, fps: float, sep: str) -> str:
 BEATS_TMPL = """/* 自动生成（subs.py）——解说词/配音改动后重跑即全量刷新，别手改。
  * B(text)  → 该字幕块起播秒（本地坐标系，0 = 本场景第 0 帧）
  * Be(text) → 该块收尾秒
- * 规则：text 匹配「块的原文片段」即可（块内前几个字也行），找不到抛错。
+ * ★ 匹配规则是「从头开始的前缀匹配」：bt === t || bt.startsWith(t) || t.startsWith(bt)
+ *   也就是 text 必须是**块文本的开头**（唯一推荐用法），或与它整体一致。
+ *   **取中间一段会抛错**：
+ *   块文本「一位父亲写下《被网游毁掉的孩子》」→ B('一位父亲写下') ✓ / B('被网游毁掉的孩子') ✗
+ *   归一化会去 ，。、！？；：,.!?;:| 与空白（保留数字内小数点），但**不去《》「」**。
+ *   拿不准就抄块文本的前 6–10 个字。构建期先跑 scripts/check_beats_refs.py 全量校验。
  * __SEG_INFO__：{id, duration, speech_end, tail} —— duration 对帧长、
  * speech_end 是语音真实结束（按它排主体动画，尾部留静止呼吸）。
  * 用法：window.__SEG__.speech_end / window.__SEG__.duration */

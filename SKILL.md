@@ -1,6 +1,6 @@
 ---
 name: html-explainer
-version: 1.4.2
+version: 1.4.3
 description: 把任意主题做成「讲解/科普视频」并渲染成 MP4：调研→审查→解说词→字幕→配音（edge-tts，或火山引擎语音合成 2.0）→并行构建 HTML 场景→确定性逐帧渲染→成片后出多画幅封面。**画面语言内置 23 个模板风格 / 8 个类别**（大胆信号卡、奢华极简、NYT 数据图表、瑞士网格、故障艺术、胶片漏光、流体 Hero、Logo 收尾、东方柔和有机、VFX 文字光标…共 23 种风格，含每种的画布/配色/字体/时间轴规范，见 references/style-catalog.md），流程规范与音画同步体系承自 anything2explainer（词边界字幕、两级时钟、语速标定、多 agent 分工与 QC 判据），渲染层为自研 seek 式渲染器。**封面默认 16:9 + 3:4 两张**：抖音主封面 1920×1080 + 兼容主页栅格 3:4 的 1440×1080（独立重排，防切字）；**竖版投放再加 9:16 的 1080×1920**（左右并置必须改上下堆叠、上下边距让开平台 UI 层）。独立可移植：GSAP 内置、playwright-core 随包、ffmpeg 走 imageio-ffmpeg 回退、浏览器自动探测 Chrome/Edge；**不依赖 html-video / anything2explainer 任何代码或目录**。触发场景：要做科普/讲解/教学/知识/产品类视频、"讲一下 X 做成视频"、要用 html-video 那种模板化画面但更稳的音画同步、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面/9:16 封面、anything2explainer 换 HTML 渲染、或提到 html-explainer / HTML 讲解视频 / explainer video / MG 视频。
 agent_created: true
 ---
@@ -74,6 +74,7 @@ PY=<venv python 绝对路径>          # 派子 agent 时必须展开成绝对�
 "$PY" <skill>/scripts/tts_build.py      --project .   # 配音：audio/*.mp3 + manifest
 "$PY" <skill>/scripts/timeline_build.py --project .   # 全局时间轴：layout.json + narration-full.mp3
 "$PY" <skill>/scripts/subs.py           --project .   # 字幕：subs.json + beats.js + srt/vtt
+"$PY" <skill>/scripts/check_beats_refs.py --project . # ★ 节拍引用校验：B()/Be() 是否都能解析（前缀匹配，失配秒级报出可用块）
 "$PY" <skill>/scripts/lint_frames.py    --project .   # 静态体检：八条契约违规（渲染前一秒出结果，比渲完再发现便宜得多）
 node <skill>/scripts/check_layout.mjs   .             # ★ 几何体检：越界 / 侵入字幕带 / 元素互相遮挡（lint 看不见几何）
 node <skill>/scripts/render_video.mjs   . [--preview 30] [--keep-frames] [--only <场景id>] [--mux-only] [--png-fast|--jpeg] [--concurrency N]   # 渲染：out/<slug>.mp4
@@ -229,10 +230,16 @@ FAIL 清零才算封面过。退出码 0/1，可直接挂流水线。
    - 全新画面：从 `frames/_template.html` 复制，契约见 `references/frame-contract.md`
    - 改编细则见 `references/template-guide.md`；边做边写盘
    - 想「照镜子」不必渲全片：`node scripts/peek_frame.mjs <项目> <id> --at 40,80` 秒级出图
-5. **静态体检**：`lint_frames.py --project .` 把八条契约违规钉在渲染之前（外链字体、色值字面量、
-   墙钟逻辑、`B()|| N` 兜底、字幕带压内容、缺中文字体族…）；FAIL 清零再进渲染。
-   **再跑 `check_layout.mjs .`** —— lint 看不见几何，元素互相遮挡 / 侵入字幕带 / 出画只有它管；
-   ERROR 清零再进渲染（两条命令都是一秒级，比渲完几千帧再回来看便宜得多）。
+5. **静态体检**：三条命令，全是秒级，**都在渲染之前**：
+   ```bash
+   "$PY" scripts/check_beats_refs.py --project .   # ① B()/Be() 是否都能解析（前缀匹配）
+   "$PY" scripts/lint_frames.py --project .        # ② 八条契约违规
+   node scripts/check_layout.mjs .                 # ③ 几何（遮挡/越界/侵入字幕带）
+   ```
+   ① 管**节拍引用**：`B()` 抛错只在渲到那一帧时才发生，前面几百帧白渲 —— 必须提前抓；
+   ② 管**文本规则**（外链字体、色值字面量、墙钟逻辑、`B()||N` 兜底、字幕带压内容、缺中文字体族…）；
+   ③ 管**几何** —— lint 看不见几何，元素互相遮挡 / 侵入字幕带 / 出画只有它管。
+   **三条全绿再进渲染**（比渲完几千帧再回来看便宜得多）。
 6. **打样**：`render_video.mjs . --preview 30` → **确认点 4**（风格/字号/语速/节奏一次定稿）→ 全片渲染 + qc_check
 7. **QC**：qc_report.md 的 FAIL 清零 + qc_sheet.jpg 肉眼过（字幕带 80–170px 无内容、一焦点、光跟主角）→ 按组修复 → 重渲
 8. **封面**：做 `frames/cover_169.html` + `cover_34.html`（独立排版；竖版投放再加 `cover_916.html`）
@@ -285,7 +292,9 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 - **几何：`check_layout.mjs` ERROR 清零** —— 遮挡/越界是唯一一类「lint 全绿但仍然错」的问题
   （lint 只看文本规则）。**一个几何体只准有一个坐标系**：SVG 图元与 HTML 部件不得混用两套基准
   （issue #1「蓝点没落在射线汇聚点上」的根因，见 `references/frame-contract.md`）
-- 节拍：元素出现落在对应字幕块起始 ±0.2s 内（B() 天然保证）；每句至少一处可察觉变化
+- 节拍：元素出现落在对应字幕块起始 ±0.2s 内（B() 天然保证）；每句至少一处可察觉变化。
+  **`check_beats_refs.py` 必须全绿** —— `B()` 是**前缀匹配**（text 必须是块文本的开头），
+  且抛错只在渲到那一帧时才发生（见 `references/lessons.md` #90）
 - 字幕：中文 ≤16 字/块、无标点、单帧硬切、每块 ≥0.6s；末块跟着语音消失。
   **小数点不算标点**（`2.4%` 上屏幕必须是 `2.4%`，削成 `24%` 是差一个数量级的假数字）；
   `,` / `:` 照删。这条规则有五个出口，改动要一起动（见 `references/lessons.md` #88）
@@ -294,8 +303,16 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
   `--mg-sub-fg` / `--mg-sub-stroke` / `--mg-track` / `--mg-tick` 即可（见 `references/lessons.md` #75）。
   **它是渲染期产物 —— 改它 = 整片重渲，所以第一次全片渲染前先用 `--preview` 拿到
   跨明暗切换的那几十秒。**
-- 事实：画面数字/术语/年份逐个对调研 URL；示例数据标「示意」
-- 时长：落在确认点 1 区间内；成片与音轨差 <0.5s（qc_check 把关）
+  **★ 亮底帧的 HTML 必须带 `<body class="paper">`**（`body.paper` 才会切字幕/进度条皮肤）。
+  派子 agent 写亮底帧时要把这条写进硬规矩并点名"同组的暗底帧不能加"，交付后 `grep -n '<body' frames/*.html` 自查
+  （见 `references/lessons.md` #94）
+- 事实：画面数字/术语/年份逐个对调研 URL；示例数据标「示意」。
+  **★ 画面文字写的「口径名」必须与来源报告的口径名逐字一致** —— 二手转述会偷换统计主体
+  （「网络视听 201 分钟」被写成「短视频 201 分钟」是造数）。**拿不到一手口径的数字，宁缺勿用**
+  （见 `references/lessons.md` #95）
+- 时长：落在确认点 1 区间内；成片与音轨差 <0.5s（qc_check 把关）。
+  **★ 解说词一次定稿**：数据/文案一改就要重跑 tts→timeline→subs，**全部 beats 的秒数一起位移**
+  ——「时效刷新」是流水线的正式步骤，位置在 `tts_build` 之前（见 `references/lessons.md` #96）
 
 ## 关键文件
 
@@ -309,6 +326,7 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 | `scripts/tts_build.py` | 配音合成：edge-tts **或** 火山引擎（`--provider`）；缓存/硬超时/退避重试/裁静音，manifest 写两级时长。两引擎 manifest 结构一致 |
 | `scripts/timeline_build.py` | layout.json 全局轴 + narration-full.mp3（gap 显式插入） |
 | `scripts/subs.py` | 字幕三出口（subs.json / srt+vtt / 画面内层由渲染器注入）+ beats.js 节拍器 |
+| `scripts/check_beats_refs.py` | **节拍引用构建期校验**：把每帧的 `B()`/`Be()` 全抓出来和自己的 beats 表对一遍。**`B()` 是前缀匹配**（`bt===t ‖ bt.startsWith(t) ‖ t.startsWith(bt)`，归一化不去 `《》「」`），取中间一段会抛错 —— 而那个错**只在渲到那一帧时才炸**（前面几百帧白渲）。本脚本把它提前到构建期：失配打印**该帧可用块列表**，退出码 1，秒级 |
 | `scripts/lint_frames.py` | **渲染前静态体检**：八条契约违规逐条报（外链字体/色值字面量/墙钟/`B()\|\|N`/字幕带压内容/缺中文字体族…）—— 只看**文本规则**，看不见几何 |
 | `scripts/check_layout.mjs` | **渲染前几何体检**（终态）：侵入字幕禁区 / 出画 / 文字被遮挡 / 文字重叠 = ERROR；越安全边 / 文字压色块 / 色块重叠 = WARN；疑似未对齐 = INFO。量的是**字墨范围**（Range 逐行）而非元素框。`--only` / `--json` / `--safe-bottom`；有 ERROR 退出码 1 |
 | `scripts/render_video.mjs` | 渲染器：浏览器探测 → 逐场景 seek 截图 → ffmpeg 合成；`--preview N` 快样片，`--only <场景id>` 只重渲指定场景（**仅末场安全**，变短后须清尾部过期帧，见 lessons 45），`--mux-only` 用现有帧重新合成；**帧里有满幅照片就必须换截图模式**（默认 PNG 编码占 96% 帧时间且与并发无关）：`--png-fast` 无损 4.4×，`--jpeg --jpeg-quality 95` 13×；`--crf N` / `--preset <名>` 单独控制成片码率 |

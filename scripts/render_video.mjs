@@ -19,7 +19,10 @@
  * 【时长口径（继承并修正两级时钟）】
  *   - 场景时长 = 该段 MP3 的**容器时长**（tts_build.py 已裁首尾静音并回填），
  *     段间 gap 由 timeline_build.py 显式插入 —— 音画天然对齐。
- *   - 总帧数 = round(total × fps)，按场景累计舍入，不逐场景独立舍入。
+ *   - 总帧数 = **layout._total.total_frames**（声明值，全片渲染时采信；--preview 才现算），
+ *     按场景累计舍入，不逐场景独立舍入。**不要**自己从 duration_sec 重算 ——
+ *     duration_sec 舍入到 3 位小数，重算结果会在 .5 帧边界上与声明值差 1，QC 会报假截断。
+ *     `-t` 也必须按 totalFrames/fps 反算（同一分歧的第二个出口）。
  *
  * 用法（项目目录 = 含 project.json 的目录）：
  *   node render_video.mjs <projectDir> [--out out/<slug>.mp4]
@@ -306,7 +309,18 @@ async function main() {
     + (pj.gap || 0) * (order.length - 1);
   const preview = args.preview && args.preview > 0 ? Math.min(args.preview, totalSec) : null;
   const renderSec = preview != null ? preview : totalSec;
-  const totalFrames = Math.max(1, Math.round(renderSec * fps));
+  // ★ 全片渲染时以 layout._total.total_frames 为**唯一出口**（qc_check.py 就是拿这个数对帧数的）。
+  //   两边各自从浮点重算，在 .5 边界上必然分歧 —— 根因是两边的时长**来源不同**：
+  //       timeline_build.py：拿**未舍入**的 manifest 时长求和 → round(170.95000000000002*30) = 5129
+  //       本文件：            只能拿 layout 里**已舍入到 3 位小数**的 duration_sec → round(170.95*30) = 5128
+  //   实测（2026-09 《5G 七年》）：渲出 5128 帧、帧序列 1..5128 **连续无缺口**、音轨被完整覆盖，
+  //   纯粹是舍入分歧，却被 QC 报成「视频流被截断」。声明值可用时直接采信，两边就恒等。
+  //   --preview 不是全片、没有声明值，仍按预览秒数算。
+  const declaredFrames = Number(layout?._total?.total_frames);
+  const useDeclared = preview == null && Number.isFinite(declaredFrames) && declaredFrames > 0;
+  const totalFrames = useDeclared
+    ? declaredFrames
+    : Math.max(1, Math.round(renderSec * fps));
 
   // 各场景的全局起止帧
   // ★ 帧号边界必须**构造性无缝**：先按累计时间一次算好每场起点，再令第 i 场的终点帧
@@ -530,7 +544,11 @@ async function main() {
     // layout 的 video_duration_sec 含片尾留白（末块字幕的收尾余韵），
     // -shortest 会按音轨长度截视频，把这段留白连同最后一块字幕一起切掉
     // （实测：片尾字幕从设计的 1.5s 缩到 1.16s）。改用 apad 补静音 + -t 锁视频长度。
-    cmd.push('-af', 'apad', '-t', renderSec.toFixed(3));
+    // ★ -t 必须**按 totalFrames 反算**，不能直接写 renderSec：采信声明帧数后
+    //   totalFrames/fps（5129/30 = 170.967）会**大于** renderSec（170.950），
+    //   用 renderSec 锁长照样把最后一帧切掉 —— 那就是「补帧补了个寂寞，QC 依旧报截断」。
+    //   这是同一个舍入分歧的**第二个出口**：改了 totalFrames 不改 -t，等于没改。
+    cmd.push('-af', 'apad', '-t', (totalFrames / fps).toFixed(3));
   }
   cmd.push(outPath);
 
