@@ -1,7 +1,7 @@
 ---
 name: html-explainer
-version: 1.4.3
-description: 把任意主题做成「讲解/科普视频」并渲染成 MP4：调研→审查→解说词→字幕→配音（edge-tts，或火山引擎语音合成 2.0）→并行构建 HTML 场景→确定性逐帧渲染→成片后出多画幅封面。**画面语言内置 23 个模板风格 / 8 个类别**（大胆信号卡、奢华极简、NYT 数据图表、瑞士网格、故障艺术、胶片漏光、流体 Hero、Logo 收尾、东方柔和有机、VFX 文字光标…共 23 种风格，含每种的画布/配色/字体/时间轴规范，见 references/style-catalog.md），流程规范与音画同步体系承自 anything2explainer（词边界字幕、两级时钟、语速标定、多 agent 分工与 QC 判据），渲染层为自研 seek 式渲染器。**封面默认 16:9 + 3:4 两张**：抖音主封面 1920×1080 + 兼容主页栅格 3:4 的 1440×1080（独立重排，防切字）；**竖版投放再加 9:16 的 1080×1920**（左右并置必须改上下堆叠、上下边距让开平台 UI 层）。独立可移植：GSAP 内置、playwright-core 随包、ffmpeg 走 imageio-ffmpeg 回退、浏览器自动探测 Chrome/Edge；**不依赖 html-video / anything2explainer 任何代码或目录**。触发场景：要做科普/讲解/教学/知识/产品类视频、"讲一下 X 做成视频"、要用 html-video 那种模板化画面但更稳的音画同步、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面/9:16 封面、anything2explainer 换 HTML 渲染、或提到 html-explainer / HTML 讲解视频 / explainer video / MG 视频。
+version: 2.0.0
+description: 把任意主题做成「讲解/科普视频」并渲染成 MP4：调研→审查→解说词→字幕→配音（edge-tts，或火山引擎语音合成 2.0）→**主题驱动风格编排**→并行构建 HTML 场景→确定性逐帧渲染→成片后出多画幅封面。**画面语言内置 23 个模板风格 / 8 个类别**（大胆信号卡、奢华极简、NYT 数据图表、瑞士网格、故障艺术、胶片漏光、流体 Hero、Logo 收尾、东方柔和有机、VFX 文字光标…共 23 种风格，含每种的画布/配色/字体/时间轴规范，见 references/style-catalog.md）。**v2.0 新增**：①**动效库**（`assets/motion.js`，5 组共 40+ 动作词汇：弹簧/进出场/承接/接触/运镜/环境光）；②**4K60 + 快门运动模糊**（`--quality / --fps / --profile`，线性光积分，静帧自动跳过）；③**渲染提速**（多浏览器进程级并行 / `--png-fast` / `--jpeg` / `--resume` 断点续渲），且**渲染前必须先问用户选哪条中间帧通道**（`png` / `png-fast` / `jpeg q95` / `jpeg q82`，附速度对比与推荐；未拍板由 `gate_check.py --phase render` 挡下）；④**主题驱动模板编排**（`scripts/style_director.py`，按内容类型/情绪/节奏/受众挑风格、混用与局部替换、动态开头与转场，不再一片一模板）。流程规范与音画同步体系承自 anything2explainer（词边界字幕、两级时钟、语速标定、多 agent 分工与 QC 判据），渲染层为自研 seek 式渲染器。**封面默认 16:9 + 3:4 两张**：抖音主封面 1920×1080 + 兼容主页栅格 3:4 的 1440×1080（独立重排，防切字）；**竖版投放再加 9:16 的 1080×1920**（左右并置必须改上下堆叠、上下边距让开平台 UI 层）。独立可移植：GSAP 内置、playwright-core 随包、ffmpeg 走 imageio-ffmpeg 回退、浏览器自动探测 Chrome/Edge；**不依赖 html-video / anything2explainer 任何代码或目录**。触发场景：要做科普/讲解/教学/知识/产品类视频、"讲一下 X 做成视频"、要用 html-video 那种模板化画面但更稳的音画同步、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面/9:16 封面、anything2explainer 换 HTML 渲染、或提到 html-explainer / HTML 讲解视频 / explainer video / MG 视频。
 agent_created: true
 ---
 
@@ -16,15 +16,44 @@ agent_created: true
 > 风格库是**抄下来的设计规范文本**（`references/style-catalog.md`），来源 `html-video`（Apache-2.0），
 > 类比：把菜谱抄回家，之后做菜不需要原餐厅营业。
 
+**v2.0 新增能力（全部可选、向下兼容；不用就是 v1.4 行为）**
+
+| 能力 | 入口 | 文档 |
+|---|---|---|
+| **动效库**（40+ 动作词汇） | `assets/motion.js` → `window.HXM` | `references/motion-library.md` |
+| **主题驱动模板编排**（挑风格 / 混用 / 动态开头） | `scripts/style_director.py` | `references/style-director.md` |
+| **画质帧率档位 + 快门运动模糊 + 提速** | `scripts/render_video.mjs --profile/--quality/--fps` | `references/render-profiles.md` |
+| **渲染基准测试**（优化前后对比） | `scripts/bench_render.py` | `references/render-profiles.md` |
+| **宣传片范式**（去模板化：模板只吸纳配色/字体/时序三层） | 设计方法 | `references/showcase-mode.md` |
+| **库全量演示编排**（统一舞台 + 节拍网格 + 标签常驻） | 设计方法 | `references/library-showcase.md` |
+| **确认闸门**（六个确认点由用户拍板才放行） | `scripts/gate_check.py` | `SKILL.md` 流程第 3 步 |
+| **★ 渲染通道确认**（渲染前必问：`png` / `png-fast` / `jpeg q95` / `jpeg q82`，附速度与推荐） | `consent.json` 的 `render_channel` + `gate_check.py --phase render` | `SKILL.md` 确认点 5 · `references/render-profiles.md` §0 |
+
 把一个主题做成**原创**讲解视频：任意风格的 MG 画面（HTML/CSS/GSAP，1920×1080 或竖版）、
 配音（edge-tts）、词级对齐硬字幕、全局进度条。一句话一个场景，画面节拍直接锚在
 吐字时刻上（`B('块文本')` 节拍器）。
 
 ## ★ 画面风格库（23 个模板 / 8 个类别）
 
-**不要自己从零想画面 —— 先从风格库里挑；挑出候选后交用户拍板（见**确认点 0**），不许静默自选。**
+**不要自己从零想画面 —— 先从风格库里挑；多个风格要混用时用编排器自动挑（见下）。**
+挑出候选后交用户拍板（见**确认点 0**），不许静默自选。
 完整目录（含每种的画布/字体/时间轴/配色纪律）
 见 **`references/style-catalog.md`**；怎么改编成合规帧见 **`references/template-guide.md`**。
+
+**两种用法的深度不同，先分清在做哪一种**：
+
+| 你在做 | 怎么用风格库 | 读这篇 |
+|---|---|---|
+| **讲解片**（默认） | 从 23 个模板里**挑一个**，按 `template-guide.md` 改编成帧 | `references/template-guide.md` |
+| **宣传片 / 发布片**（去模板化） | 只从模板**吸纳配色 / 字体 / 时序骨架三层**，画面语言用 `assets/motion.js` 重写 —— **不搬模板画面** | **`references/showcase-mode.md`** |
+| **要全量展示某个库**（40+ 动效 / 23 个模板） | 统一舞台 + 节拍网格 + 标签常驻，把「N 个动作」演成「一个动作语言的 N 拍」 | **`references/library-showcase.md`** |
+
+> 判据：成片能被认出「这是 bold-signal 模板」= 吸纳过头；只能说「颜色像 xx、节奏像 yy」= 深度对了。
+
+> **★ v2.0：不要一片只用一个模板。** 用 `scripts/style_director.py` 读解说词，
+> 自动给每场挑主风格（按角色/时长/关键词打分）、按需搭次风格做**局部替换**、
+> 决定**动态开头变体**与**场间转场**、并算出每场的**动效强度**。
+> 详见 `references/style-director.md`。核心价值：**让模板服务于主题，而不是让主题被模板限制**。
 
 | 类别 | 可用风格 |
 |---|---|
@@ -75,9 +104,12 @@ PY=<venv python 绝对路径>          # 派子 agent 时必须展开成绝对�
 "$PY" <skill>/scripts/timeline_build.py --project .   # 全局时间轴：layout.json + narration-full.mp3
 "$PY" <skill>/scripts/subs.py           --project .   # 字幕：subs.json + beats.js + srt/vtt
 "$PY" <skill>/scripts/check_beats_refs.py --project . # ★ 节拍引用校验：B()/Be() 是否都能解析（前缀匹配，失配秒级报出可用块）
+"$PY" <skill>/scripts/style_director.py --project .   # ★ v2.0 风格编排：读解说词给每场挑主/次风格 + 开场变体 + 转场 + 动效强度 → style-plan.json
+"$PY" <skill>/scripts/gate_check.py     --project .   # ★★ 确认闸门：六个确认点未由用户拍板 → 拒绝放行（缺 consent.json 用 --init 生成）
+"$PY" <skill>/scripts/gate_check.py     --project . --phase render   # ★★ 渲染前必过：render_channel（渲染通道）未拍板 → 拒绝渲染
 "$PY" <skill>/scripts/lint_frames.py    --project .   # 静态体检：八条契约违规（渲染前一秒出结果，比渲完再发现便宜得多）
 node <skill>/scripts/check_layout.mjs   .             # ★ 几何体检：越界 / 侵入字幕带 / 元素互相遮挡（lint 看不见几何）
-node <skill>/scripts/render_video.mjs   . [--preview 30] [--keep-frames] [--only <场景id>] [--mux-only] [--png-fast|--jpeg] [--concurrency N]   # 渲染：out/<slug>.mp4
+node <skill>/scripts/render_video.mjs   . [--audio audio/narration-full.mp3] [--profile draft|balanced|final|master] [--quality 1080p|2k|4k] [--fps 30|60] [--shutter 180] [--preview 30] [--keep-frames] [--only <场景id>] [--mux-only] [--png-fast|--jpeg] [--workers N] [--concurrency N] [--resume]   # 渲染：out/<slug>.mp4（★ 通道/档位先按确认点 5 问过用户）
 "$PY" <skill>/scripts/qc_check.py       --project .   # 体检 + 抽帧速览图
 node <skill>/scripts/cover_build.mjs    .             # 封面：out/cover_169.png + cover_34.png（竖版再加 cover_916.png）
 node <skill>/scripts/check_cover.mjs    .             # 封面终态几何实测：边距/钩子字号/行宽/孤字/9:16 禁两栏（FAIL 清零再交）
@@ -89,21 +121,70 @@ node <skill>/scripts/check_cover.mjs    .             # 封面终态几何实测
 **火山密钥只存 `tts.env`（已 gitignore）—— agent 只调 `tts_volcano.py`，不读该文件。**
 详见 `references/volcano-tts.md`。
 
-渲染截图模式（**画面里有满幅照片时务必换掉默认 PNG**，见 `lessons.md` 第 69 条）：
-默认 PNG 对纯 CSS 图形帧很快（45ms/帧），但**对照片满幅帧是 582ms/帧（13×），
-且编码在浏览器进程内串行 —— 加 `--concurrency` 完全无效**（实测并发 1/3/6 路的总吞吐
-1.80 / 1.86 / 1.87 帧/秒）。照片类片子选：
+### ★ 确认点 5 —— 渲染通道：**动手渲染前必须问用户选哪条，不许默认开工**
 
-- `--png-fast`：CDP `optimizeForSpeed`，**逐像素无损**、4.4× 加速（132ms/帧，体积 +22%）。
-- `--jpeg --jpeg-quality 95 --crf 18 --preset medium`：13× 加速、体积 1/5；
-  q95 = PSNR 41.65dB，已低于 x264 crf18 自身的失真，成片看不出。
+**硬规则：任何一次真正的渲染（打样 / 全片 / 局部补渲）之前，先把下表摆给用户让他挑通道。
+不许凭「上次用的 png-fast」或「PNG 是默认」就静默开工。** 用户在打样阶段选定后，
+同一轮的重复渲染可沿用；**换通道或换档位要重新确认一次**。
+
+| 通道 | 参数 | 逐帧耗时（纯 CSS 图形 / 满幅照片） | 相对速度 | 画质 | 中间帧体积 | 适用 / 推荐 |
+|---|---|---|---|---|---|---|
+| **PNG（默认）** | 不带开关 | 45ms / **582ms** | ×1.0（基准） | 逐像素无损 | 基准 | 只在**像素级复现旧成片**（`--profile legacy`）或用 `master` 极限画质时选 |
+| **PNG-fast** | `--png-fast` | — / 132ms | **×4.4** | **逐像素无损**（CDP `optimizeForSpeed`） | +22% | ★ **默认推荐**：无损且够快，绝大多数片子用它 |
+| **JPEG q95** | `--jpeg --jpeg-quality 95` | — / 52ms | **×13** | PSNR 41.65dB，**低于 x264 crf18 自身失真**，成片看不出 | ~1/5 | 满幅照片 / 复杂合成 / 长片省磁盘 |
+| **JPEG q82** | `--jpeg --jpeg-quality 82` | — / 41ms | **×14** | 略低，但仍高于多数成片编码失真 | ~1/5 | 打样 / 迭代预览，速度优先 |
+
+**怎么问（照抄这句）**：
+> 渲染通道你要哪条？① PNG（无损，最慢）② **PNG-fast（无损，快 4.4×，推荐）**
+> ③ JPEG q95（快 13×、体积 1/5，肉眼无差）④ JPEG q82（最快，打样用）
+
+**自动推荐口径**（给建议时按这个判，但仍要用户点头）：
+- 帧里有**满幅照片 / 重合成** → 一律别用默认 PNG（582ms/帧）；推荐 `--png-fast`，
+  片子超过 ~10 分钟或磁盘紧张时给 `--jpeg --jpeg-quality 95`。
+- **纯 CSS 图形帧** → 默认 PNG 与 `--png-fast` 都行（10× 差距只在照片帧上才出现）。
+- 只是**看节奏的打样** → `--profile draft`（档位内已含 `png-fast`）+ `--preview`。
+- **4K 终稿** → 必须 `--png-fast` 或 `--jpeg q95`（精细 PNG 会把磁盘与编码时间吃干，见 §6）。
+
+**关键事实：中间帧编码在浏览器进程内是串行的，`--concurrency` 对 PNG 完全无效**
+（实测并发 1/3/6 路的总吞吐 1.80 / 1.86 / 1.87 帧/秒）。想加速只有两条路：**换通道**或
+**加 `--workers`（真·多进程）**。照片类片子的历史教训见 `lessons.md` 第 69 条。
+
+选定的通道写进 `consent.json` 的 `render_channel` 字段，由 `gate_check.py` 挡在渲染之前。
+
+**v2.0 画质×帧率档位**（`--profile`，显式开关永远覆盖档位默认值）：
+
+```bash
+node <skill>/scripts/render_video.mjs . --list-profiles   # 看全部档位与实测量级
+node <skill>/scripts/render_video.mjs . --profile draft      # 打样：1080p30，无运动模糊，最快
+node <skill>/scripts/render_video.mjs . --profile balanced   # ★ 默认推荐：1080p30 + 快门运动模糊
+node <skill>/scripts/render_video.mjs . --profile final      # 终稿：4K60 + 运动模糊
+node <skill>/scripts/render_video.mjs . --quality 2k --fps 60 --shutter 180   # 自由组合
+```
+
+| 档位 | 画质 | 帧率 | 快门 | 说明 |
+|---|---|---|---|---|
+| `draft` | 1080p | 30 | 关 | 打样/迭代，最快 |
+| `balanced` | 1080p | 30 | 180° | **默认推荐**（质量/速度平衡） |
+| `final` | 4K | 60 | 180° | 终稿（**原始工作量**约 1080p30 的 8–12×；并行后墙钟差距远小于此，见 render-profiles.md） |
+| `master` | 4K | 60 | 180° | 极限画质（PNG 精细 + 最慢编码） |
+| `legacy` | 1080p | — | 关 | 逐位复现 v1.4.x 旧成片 |
+
+- **快门运动模糊**是**线性光下多样本积分**（不是 blur 滤镜）；`hold` 静帧只截 2 张就跳过，
+  静止段几乎不额外耗时。快动作 > 80px/帧 不开快门会重影成串。
+- **多浏览器进程级并行**（`--workers`）+ `--resume` 断点续渲 + `--recycle` 定期重启浏览器（4K 长片防 OOM）。
+- 画质只改 `deviceScaleFactor`（1× / 1.333× / 2×），**布局逐像素不变**，只是采样更密。
+- 完整权衡（速度/质量/体积）、基准数据与硬件要求见 **`references/render-profiles.md`**。
 
 辅助工具（随时可用，不进主流水线）：
 
 ```bash
 "$PY" <skill>/scripts/make_theme.py --topic "医疗" --use   # 主题换色（只重写 theme.css，帧零改动）
 node <skill>/scripts/peek_frame.mjs . <帧id> --at 40,80    # 单帧速览：秒级出图，先看设计对不对
-# ★ peek_frame 的 --at 是**百分比**不是帧号；查冷开场空屏要传 --at 1,3,6 这种小百分数
+node <skill>/scripts/peek_frame.mjs . <帧id> --at-sec 3.5,12,16.2   # ★ 更推荐：按「绝对秒」定位
+# ★ --at 是**百分比**（相对 GSAP 时间轴全长）；轴长常被尾段防冻层拉长 10–60s，
+#   所以「帧尾终态」对应的百分比因帧而异、极易算错 —— 优先用 --at-sec。
+#   看终态取 speech_end−1.5s，看中段取 speech_end/2（值都在 frames/<id>.beats.js 的 __SEG__ 里）。
+#   没有 --at-sec 时才退回 --at（查冷开场空屏传 1,3,6 这种小百分数）。
 node <skill>/scripts/peek_frame.mjs . <帧id> --at 100 --guides  # 叠十字中线 + 字幕禁区线（判对齐必开）
 "$PY" <skill>/scripts/frame_at.py --project . --at 1:23    # 时间点 → 场景/帧号/源文件/终态帧图
 "$PY" <skill>/scripts/frame_at.py --project . --list       # 全片场景时间表
@@ -181,7 +262,7 @@ FAIL 清零才算封面过。退出码 0/1，可直接挂流水线。
 | 渲染 | **确定性 seek**：`tl.pause(t, false)` + CSS 动画 `currentTime=t×1000` → 截图 → ffmpeg 合成。无实时录制，html-video 的引导期/起播/字体坑整类不存在。**第二参必须传 `false`**，少了它 `onUpdate` 类回调被静默抑制（数字滚动恒为初值，见 lessons #27） |
 | 字幕层/进度条 | 渲染器注入并逐帧驱动（`#mg-subs` 44px 白字黑边 bottom 96px；`#mg-progress` accent 填充），帧作者零负担 |
 
-## 流程（五个确认点必须停下等用户回话）
+## 流程（六个确认点必须停下等用户回话）
 
 完整版见 `references/workflow-guide.md`（含研究员/构建/QC agent 的 prompt 模板与时长档位表）。
 
@@ -200,6 +281,11 @@ FAIL 清零才算封面过。退出码 0/1，可直接挂流水线。
    - 用户明确说「你决定」「按你上一次的来」时才可以自行选择 —— 且要说明选了什么、为什么。
    - ⚠️ 反面教材：看到暖色题就默认 `--preset amber`、看到数据题就默认瑞士网格。
      记忆里"好用"的东西不构成用户的选择。
+   - **设计思维要一次问全**（宣传片 / 发布片尤其）—— 除配色外，还要问清三件事：
+     ① **影片形态**（纯视觉宣言 / 主视觉+章节讲解 / 双版本）；
+     ② **库演示方式**（全量逐条罗列 / 分组深挖 / 精选高光）；
+     ③ **时长与画幅**（多少秒；是否出竖版成片与 9:16 封面）。
+     这四问的答复**全部写进 `consent.json`**，然后由 `gate_check.py` 挡在场景构建之前。
 1. **调研**（20 分钟，1 agent）：research/调研.md，每个数字带 URL；**确认点 1**（时长/语言 + **投放画幅与封面张数**）并行问
 
    **确认点 1 顺带问一件事：封面要哪几张。** 默认 16:9 + 3:4 两张（横版投抖音/视频号）。
@@ -223,6 +309,22 @@ FAIL 清零才算封面过。退出码 0/1，可直接挂流水线。
    最后写画面/主角·尺寸/光/B() 锚点；末尾全局约束
    （贯穿示例、事实清单、每章 1–2 高光时刻、每章 ≥3 运镜）。
    全片建议 2–4 种风格轮换，避免 8 个场景全用同一个模板。
+
+   ### ★ 确认闸门 —— 进阶段 4 之前必须过（把纸面规则变成硬闸门）
+
+   ```bash
+   "$PY" <skill>/scripts/gate_check.py --project .                # 缺一项确认就拒绝放行
+   "$PY" <skill>/scripts/gate_check.py --project . --phase render # ★ 渲染前再跑：只查渲染通道拍板没有
+   ```
+
+   为什么要有这一步：**纸面规则会被静默跳过** —— 确认点写得再清楚，
+   agent 也可能直接跑 `style_director.py` 把风格自选了，用户事后才发现「你没问过我」；
+   渲染同理：默认 PNG 一路渲完，用户才发现「你没问过我用哪条通道」。
+   本闸门要求 `consent.json` 里**七项**（配色 / 风格 / 形态 / 配音 / 时长 / 封面 / **渲染通道**）
+   全部由用户拍板（`decided_by == "user"`），任一缺失即退出码 1。
+   缺文件时用 `--init` 生成模板，脚本**不替用户选任何一项**。
+   其中 `render_channel` 由 **`--phase render`** 在每次渲染前单独复检（确认点 5）。
+
 4. **场景构建（并行）**：每组 4–8 场景一个 agent（一波 ≤3–4 个）。
    - 挑中的 **rich** 模板：从它的 `source/index.html` 改写 —— ①删 Google Fonts 换系统栈
      ②底部元素抬到 ≥176px ③填真实内容（照 `example.md` 的字段）
@@ -240,7 +342,11 @@ FAIL 清零才算封面过。退出码 0/1，可直接挂流水线。
    ② 管**文本规则**（外链字体、色值字面量、墙钟逻辑、`B()||N` 兜底、字幕带压内容、缺中文字体族…）；
    ③ 管**几何** —— lint 看不见几何，元素互相遮挡 / 侵入字幕带 / 出画只有它管。
    **三条全绿再进渲染**（比渲完几千帧再回来看便宜得多）。
-6. **打样**：`render_video.mjs . --preview 30` → **确认点 4**（风格/字号/语速/节奏一次定稿）→ 全片渲染 + qc_check
+6. **打样**：`render_video.mjs . --preview 30` → **确认点 4**（风格/字号/语速/节奏一次定稿）
+   → **★ 确认点 5 —— 渲染通道**：把 `png` / `png-fast` / `jpeg q95` / `jpeg q82` 四条摆给用户挑
+   （每条带一句描述、逐帧耗时、相对速度与推荐口径，见上文「确认点 5」与 `references/render-profiles.md` §0），
+   拍板后写进 `consent.json` 的 `render_channel`，跑 `gate_check.py --phase render` 放行
+   → 全片渲染 + qc_check
 7. **QC**：qc_report.md 的 FAIL 清零 + qc_sheet.jpg 肉眼过（字幕带 80–170px 无内容、一焦点、光跟主角）→ 按组修复 → 重渲
 8. **封面**：做 `frames/cover_169.html` + `cover_34.html`（独立排版；竖版投放再加 `cover_916.html`）
    → `node scripts/cover_build.mjs .` → **`node scripts/check_cover.mjs .`**（量终态几何，FAIL 清零）
@@ -327,9 +433,12 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 | `scripts/timeline_build.py` | layout.json 全局轴 + narration-full.mp3（gap 显式插入） |
 | `scripts/subs.py` | 字幕三出口（subs.json / srt+vtt / 画面内层由渲染器注入）+ beats.js 节拍器 |
 | `scripts/check_beats_refs.py` | **节拍引用构建期校验**：把每帧的 `B()`/`Be()` 全抓出来和自己的 beats 表对一遍。**`B()` 是前缀匹配**（`bt===t ‖ bt.startsWith(t) ‖ t.startsWith(bt)`，归一化不去 `《》「」`），取中间一段会抛错 —— 而那个错**只在渲到那一帧时才炸**（前面几百帧白渲）。本脚本把它提前到构建期：失配打印**该帧可用块列表**，退出码 1，秒级 |
+| `scripts/style_director.py` | ★ **v2.0 主题驱动风格编排**：读 `narration.json` 推断每场角色（开场/陈述/数据/原理/例证/反差/收束/落版），按角色×子类别×时长×内容词打分挑**主风格**，按能量预算给部分场搭**次风格**（局部替换），决定**开场变体**、**场间转场**、**动效强度**，并施加多样性约束（风格数上限/连续同风格上限/开场≠第二场）。产物 `style-plan.json` 的 `why` 字段逐条可解释 |
 | `scripts/lint_frames.py` | **渲染前静态体检**：八条契约违规逐条报（外链字体/色值字面量/墙钟/`B()\|\|N`/字幕带压内容/缺中文字体族…）—— 只看**文本规则**，看不见几何 |
 | `scripts/check_layout.mjs` | **渲染前几何体检**（终态）：侵入字幕禁区 / 出画 / 文字被遮挡 / 文字重叠 = ERROR；越安全边 / 文字压色块 / 色块重叠 = WARN；疑似未对齐 = INFO。量的是**字墨范围**（Range 逐行）而非元素框。`--only` / `--json` / `--safe-bottom`；有 ERROR 退出码 1 |
-| `scripts/render_video.mjs` | 渲染器：浏览器探测 → 逐场景 seek 截图 → ffmpeg 合成；`--preview N` 快样片，`--only <场景id>` 只重渲指定场景（**仅末场安全**，变短后须清尾部过期帧，见 lessons 45），`--mux-only` 用现有帧重新合成；**帧里有满幅照片就必须换截图模式**（默认 PNG 编码占 96% 帧时间且与并发无关）：`--png-fast` 无损 4.4×，`--jpeg --jpeg-quality 95` 13×；`--crf N` / `--preset <名>` 单独控制成片码率 |
+| `scripts/render_video.mjs` | 渲染器：浏览器探测 → 逐场景 seek 截图 →（可选快门运动模糊积分）→ ffmpeg 合成；`--preview N` 快样片，`--only <场景id>` 只重渲指定场景（**仅末场安全**，变短后须清尾部过期帧，见 lessons 45），`--mux-only` 用现有帧重新合成；**帧里有满幅照片就必须换截图模式**（默认 PNG 编码占 96% 帧时间且与并发无关）：`--png-fast` 无损 4.4×，`--jpeg --jpeg-quality 95` 13×；`--crf N` / `--preset <名>` 单独控制成片码率。**v2.0 新增**：`--profile` 成套档位、`--quality`×`--fps` 自由组合、`--shutter` 快门运动模糊、`--workers` 多浏览器进程级并行、`--resume` 断点续渲、`--recycle` 定期重启浏览器 |
+| `scripts/blur_integrate.py` | **快门运动模糊积分器**（渲染管线第 2 段）：把 Node 侧抓到的 K 张快门样本在**线性光**下逐像素平均 —— 真的积分，不是 blur 滤镜。多进程并行、天然支持断点续渲 |
+| `scripts/bench_render.py` | **渲染管线基准工装**：合成复杂度可控的项目 → 同机多档位各渲一遍 → 拉出「截图耗时/fps/体积」对比表（优化前后同表对比） |
 | `scripts/qc_check.py` | 流/时长/音量/抽帧体检 + contact sheet |
 | `scripts/cover_build.mjs` | 封面渲染器：`169`(1920×1080) / `34`(1440×1080) / `916`(1080×1920) 各一份独立排版 → 2 倍图；`--at` / `--only` / `--jpg`；**缺哪张就跳哪张** |
 | `scripts/check_cover.mjs` | **封面终态几何实测器**：边距 / 钩子字号 / 钩子是否最大文字 / 行宽 / 孤字断行 / 9:16 禁左右两栏 / 越界；`--only` / `--json` / `--shot`；退出码 0/1 |
@@ -338,7 +447,7 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 
 | 路径 | 作用 |
 |---|---|
-| `scripts/peek_frame.mjs` | 单帧速览：不渲全片，秒级截某场景的几个时点看图（`--at` 是百分比）；`--guides` 叠十字中线 + 字幕禁区线（**判「元素有没有对齐」必须开**，没有基准线肉眼判不了） |
+| `scripts/peek_frame.mjs` | 单帧速览：不渲全片，秒级截某场景的几个时点看图。**`--at-sec 3.5,12` 按绝对秒定位（推荐，自动读轴长换算）**；`--at` 是相对整条时间轴的百分比（轴长会被尾段防冻层拉长，容易算错）；`--guides` 叠十字中线 + 字幕禁区线（**判「元素有没有对齐」必须开**，没有基准线肉眼判不了） |
 | `scripts/frame_at.py` | **时间点 → 定位**：报「几分几秒」就能拿到场景 id / 帧号 / 源文件 / 当刻字幕块 / 整帧图 / 底部禁区带裁图 / **场景终态帧**（`--at 1:23` / `--list` / `--box x0,y0,x1,y1` / `--final`）。画面排障的入口工具 |
 | `scripts/check_integrity.py` | 仓库自洽性：版本号/风格目录/计数一致性 + 模板外链扫描（CI 与本地都跑） |
 | `scripts/make_theme.py` | 4 预设 + 主题词推色 → theme.css（CSS 变量单源） |
@@ -357,10 +466,14 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 | `references/frame-contract.md` | 契约细则 + 版式基因 + 反例 |
 | `references/cover-guide.md` | **封面详规**：一张还是几张 / 各画幅排版纪律 / 重排对照表 / 三要素 / 尺寸倍率 / 上传策略 / 自检清单 |
 | `references/workflow-guide.md` | 阶段详解 + agent prompt 模板 + 时长档位表 |
+| `references/motion-library.md` | ★ **v2.0 动效库文档**：40+ 动作词汇（enter/carry/contact/camera/ambience 五组）、曲线表、场景契约、完整示例、六条纪律 |
+| `references/style-director.md` | ★ **v2.0 模板编排文档**：八种角色、打分维度、混用与局部替换、多样性约束、`style-plan.json` 结构、命令行 |
+| `references/render-profiles.md` | ★ **v2.0 画质/帧率档位与性能文档**：档位表、质量-速度-体积权衡、快门与并行原理、基准数据、4K60 硬件要求 |
 | `references/lessons.md` | 踩坑台账（继承 14 条 + 本技能记录，持续追加） |
 | `assets/frame-template.html` | 场景模板（契约注释在文件头，B() 用法示例） |
 | `assets/cover-template.html` | **封面模板**（封面三要素注释在文件头，可改尺寸复用为 16:9 / 3:4 / 9:16 各一份） |
 | `assets/gsap.min.js` | GSAP 3.13 本地内置（离线渲染；License 见同目录 `gsap-README.md`） |
+| `assets/motion.js` | ★ **v2.0 动效库**（40+ 动作词汇）。浏览器挂 `window.HXM`，Node 可 `require` 跑自测。无依赖、无构建、纯函数（可逐帧 seek） |
 | `README.md` / `README.en.md` | 对外项目说明（**README.md 中文为默认**，`README.en.md` 英文；含跨 Agent 安装指引） |
 | `CONTRIBUTING.md` | 贡献指南：硬性规则、端到端自检、PR 清单 |
 | `CHANGELOG.md` | 版本变更史 |
@@ -423,8 +536,16 @@ bash setup_env.sh --install            # 自检 + 装缺项（先装后判定，
 python scripts/new_project.py demo --topic "人工智能"
 # …填 narration.json / 写 frames/*.html / 填 project.json.order…
 python scripts/tts_build.py --project . && python scripts/timeline_build.py --project .
-python scripts/subs.py --project . && node scripts/render_video.mjs .
+python scripts/subs.py --project . && python scripts/style_director.py --project .
+node scripts/render_video.mjs . --profile balanced --audio audio/narration-full.mp3
 python scripts/qc_check.py --project . && node scripts/cover_build.mjs .
+```
+
+**v2.0 提速自检**：跑一次基准，确认本机各档位速度符合预期（不需要素材）：
+
+```bash
+python scripts/bench_render.py --out .scratch/bench --scenes 6 --sec 2.0 --fps 30 \
+    --configs legacy,draft,balanced --preview 6
 ```
 
 **依赖探测顺序**（都尽量用系统已有的，避免下载）：

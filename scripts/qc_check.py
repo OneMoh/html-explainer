@@ -8,7 +8,8 @@ qc_check.py —— 成片体检 + 抽帧速览图。
   ② 时长：成片 vs layout.json 的 video_duration_sec —— 差 >0.5s 判 FAIL
      （差 ~0.9s×N 段 = 帧时长用了词边界而非容器时长的典型症状；
       成片比 layout 短 ~0.5s = 合成时被 -shortest 按音轨长度截了，见 lessons #33）
-  ③ 音量：成片 mean_volume 与源音轨差 >3dB 判 FAIL（静音轨/占位轨）
+  ③ 音量：成片 mean_volume 与**成片实际用的音轨**差 >3dB 判 FAIL（静音轨/占位轨）
+     基准音轨按 resolve_reference_audio() 取：render.json 的 audio → audio/narration-full.mp3。
   ④ 抽帧：按字幕切换点 + 每场景中段抽帧；体积低于本片中位数 35% 且画面近乎
      无内容（唯一色数 <300 且 sd <6）才判可疑 —— 极简页压缩后天然体积小
   ⑤ 速览图：6 列 contact sheet → out/qc_sheet.jpg（肉眼过一遍字幕带/构图）
@@ -60,6 +61,29 @@ def mean_volume(ff, path):
     return None
 
 
+def resolve_reference_audio(proj: str, slug: str) -> str:
+    """找"成片实际用的那条音轨"，作为音量比对的基准。
+
+    按可信度取：
+      ① out/<slug>.render.json 的 audio 字段 —— 渲染器亲口说的用了哪条；
+      ② audio/narration-full.mp3 —— 配音干声。
+
+    ★ 若渲染时用了外部另外提供的音轨（非 narration-full），render.json 的
+    audio 字段会如实记录它，①会命中；②只是兜底。
+    """
+    rj = os.path.join(proj, "out", f"{slug}.render.json")
+    if os.path.exists(rj):
+        try:
+            a = json.load(open(rj, encoding="utf-8")).get("audio")
+            if a:
+                p = a if os.path.isabs(a) else os.path.join(proj, a)
+                if os.path.exists(p):
+                    return p
+        except Exception:
+            pass
+    return os.path.join(proj, "audio", "narration-full.mp3")
+
+
 def count_video_frames(ff, path):
     """实测**视频流真实帧数**。
 
@@ -106,7 +130,7 @@ def main() -> int:
     slug = pj.get("slug") or "video"
     ff = ffmpeg_exe()
     video = os.path.join(proj, "out", f"{slug}.mp4")
-    audio = os.path.join(proj, "audio", "narration-full.mp3")
+    audio = resolve_reference_audio(proj, slug)
     layout = os.path.join(proj, "layout.json")
     subs = os.path.join(proj, "subs.json")
 
@@ -187,9 +211,9 @@ def main() -> int:
     sec("音量")
     if os.path.exists(audio):
         mv_v, mv_a = mean_volume(ff, video), mean_volume(ff, audio)
-        report.append(f"- 成片 mean_volume {mv_v} dB · 源 {mv_a} dB")
+        report.append(f"- 成片 mean_volume {mv_v} dB · 基准音轨 {os.path.relpath(audio, proj)} {mv_a} dB")
         if mv_v is not None and mv_a is not None and abs(mv_v - mv_a) > 3:
-            fails.append(f"音量差 {abs(mv_v - mv_a):.1f} dB（静音轨或占位轨？）")
+            fails.append(f"音量差 {abs(mv_v - mv_a):.1f} dB（成片与 {os.path.relpath(audio, proj)} 对不上：静音轨或占位轨？）")
 
     # ④ 抽帧（字幕切换点 + 场景中段）
     sec("抽帧体检")

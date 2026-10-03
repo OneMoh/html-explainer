@@ -76,8 +76,8 @@ def check_file(path: str, want_w: int, want_h: int, is_cover: bool = False) -> l
             continue
         out.append(f"色值字面量 {m.group(0)} → 违反契约 3")
 
-    # 4/5. 时间轴 + GSAP
-    if "window.__tl" not in src and "window.__timelines" not in src:
+    # 4/5. 时间轴 + GSAP（封面是静帧，没有时间轴，不作要求）
+    if not is_cover and "window.__tl" not in src and "window.__timelines" not in src:
         out.append("未见 window.__tl 注册 → 渲染器找不到时间轴（契约 4）")
     if "gsap" in src.lower() and "../assets/gsap.min.js" not in src:
         out.append("用了 gsap 但没引 ../assets/gsap.min.js")
@@ -125,9 +125,15 @@ def main() -> int:
 
     frames_dir = os.path.join(proj, "frames")
     names = sorted(f for f in os.listdir(frames_dir) if f.endswith(".html"))
-    skip = {"_template.html"} | (set() if args.include_covers else {"cover_169.html", "cover_34.html"})
+    # 封面一律默认跳过（封面有独立质检 check_cover.mjs）。
+    # ★ 不要写成 {"cover_169.html","cover_34.html"} —— 那样 9:16 等第三张封面
+    #   会被当成普通帧去验契约（缺 window.__tl）而误报，必现假失败。
+    skip = {"_template.html"}
     only = {s.strip() for s in args.only.split(",") if s.strip()}
-    names = [n for n in names if n not in skip and (not only or n[:-5] in only)]
+    names = [n for n in names
+             if n not in skip
+             and (args.include_covers or not n.startswith("cover_"))
+             and (not only or n[:-5] in only)]
 
     all_issues: list[str] = []
     for n in names:

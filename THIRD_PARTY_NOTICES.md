@@ -154,6 +154,25 @@ html-video —— **与其中任何一方均无隶属、背书或赞助关系**�
 
 ---
 
+## 5. v2.0 新增能力与依赖
+
+v2.0 新增了动效库、快门运动模糊、多浏览器并行渲染、画质/帧率档位与主题驱动的
+风格编排。这些能力全部由本项目原创实现，只使用第 2 节列出的第三方库，**不引入任何额外的运行时
+组件**。
+
+| 新增能力 | 实现文件 | 额外依赖 |
+|---|---|---|
+| 动效库（弹簧 / 进出场 / 承接 / 相机 / 蒙版） | `assets/motion.js` | 无（纯 JS，无状态、无构建） |
+| 快门运动模糊（线性光积分） | `scripts/blur_integrate.py` + `scripts/render_video.mjs` | `numpy`、`pillow`、`playwright-core` |
+| 多浏览器进程级并行 / 断点续渲 | `scripts/render_video.mjs` | `playwright-core` |
+| 画质 / 帧率档位与基准测试 | `scripts/bench_render.py` | `playwright-core`、`imageio-ffmpeg` |
+| 主题驱动的风格编排（混用 / 局部替换） | `scripts/style_director.py` | 无（纯 Python 标准库） |
+
+`assets/motion.js` 与 `scripts/style_director.py` 不新增任何依赖；其余新增能力复用的都是第 2 节
+已有的库。**v2.0 未引入任何新的第三方依赖。**
+
+---
+
 ## 再分发者须知
 
 | 必须随你的副本一起提供 | 原因 |
@@ -163,4 +182,4 @@ html-video —— **与其中任何一方均无隶属、背书或赞助关系**�
 | `licenses/Apache-2.0.txt` | Apache-2.0 §4(a) 要求附带一份许可副本 |
 | `assets/gsap-README.md` | GSAP 许可参考；并保持 `gsap.min.js` 内的版权头完整 |
 
-*最后审阅：2026-09-21。*
+*最后审阅：2026-09-30（v2.0）。*

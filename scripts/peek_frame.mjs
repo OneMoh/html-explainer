@@ -8,10 +8,18 @@
  * 用法：
  *   node script/peek_frame.mjs <项目目录> <帧id> [--at 80] [--n 3] [--scale 1]
  *   node script/peek_frame.mjs . hook --at 40,80              # 指定百分比时点
+ *   node script/peek_frame.mjs . hook --at-sec 3.5,12,16.2    # ★ 按「绝对秒」定位（推荐）
  *   node script/peek_frame.mjs . --all --at 85                # 所有帧都截一张
  *   node script/peek_frame.mjs . 05_open --at 100 --guides    # 叠十字中线 + 字幕禁区线
  *
- * 产出：<项目>/render/peek/<id>@<pct>.png
+ * ★ 为什么优先用 --at-sec：--at 的百分比是**相对整个 GSAP 时间轴**的，
+ *   而时间轴往往比段落长（尾段防冻层会把轴拉长 10–60s），
+ *   所以「帧尾终态」对应的百分比因帧而异、极易算错。
+ *   --at-sec 内部先读一次轴长再换算，永远落在你要的绝对秒上。
+ *   取值口诀：主体动画压在 subs.json 的 speech_end 之前 →
+ *   看终态就用 speech_end - 1.5s，看中段就用 speech_end / 2。
+ *
+ * 产出：<项目>/render/peek/<id>@<pct>.png（--at-sec 时文件名带 sec 前缀）
  *
  * ★ 与 render_video.mjs 同款确定性 seek：__MG_RENDER__ 先置位（帧据此跳过自动起播），
  *   再 tl.pause(t, false) + 同步 CSS 动画 currentTime。**第二参必须是 false**，
@@ -72,6 +80,7 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const t = argv[i];
     if (t === '--at') a.at = argv[++i];
+    else if (t === '--at-sec') a.atSec = argv[++i];
     else if (t === '--n') a.n = parseInt(argv[++i], 10);
     else if (t === '--scale') a.scale = parseFloat(argv[++i]);
     else if (t === '--all') a.all = true;
@@ -121,7 +130,8 @@ const seek = async (o) => {
   let seekTo = 0, dur = null;
   if (tl && typeof tl.duration === 'function') {
     dur = tl.duration() || 0;
-    seekTo = dur * (pct / 100);
+    // o.sec 是「绝对秒」（本帧本地坐标系）；否则按百分比换算
+    seekTo = (o.sec != null) ? Math.max(0, Math.min(o.sec, dur)) : dur * (pct / 100);
     tl.pause(0, false);
     tl.pause(seekTo, false);       // ← 第二参必须 false
   }
@@ -198,6 +208,9 @@ async function main() {
   const pcts = args.at
     ? String(args.at).split(',').map((s) => parseFloat(s)).filter((x) => !Number.isNaN(x))
     : (args.n ? Array.from({ length: args.n }, (_, i) => Math.round(((i + 1) / (args.n + 1)) * 100)) : [85]);
+  const secs = args.atSec
+    ? String(args.atSec).split(',').map((s) => parseFloat(s)).filter((x) => !Number.isNaN(x))
+    : [];
 
   const outDir = path.join(projectDir, 'render', 'peek');
   fs.mkdirSync(outDir, { recursive: true });
@@ -218,12 +231,24 @@ async function main() {
       await page.addInitScript(`window.__MG_RENDER__ = true;`);
       await page.goto(pathToFileURL(path.join(framesDir, `${id}.html`)).href, { waitUntil: 'domcontentloaded' });
       await page.evaluate(FONT_WAIT);
-      for (const pct of pcts) {
-        const r = await page.evaluate(seek, { pct });
+      // --at-sec：先探一次轴长，把「绝对秒」换算成百分比，永远落在指定秒上
+      let items;
+      if (secs.length) {
+        const probe = await page.evaluate(seek, { pct: 0 });
+        const dur = probe.dur || 0;
+        items = secs.map((s) => ({ sec: s, pct: dur > 0 ? Math.round((s / dur) * 1000) / 10 : 0 }));
+      } else {
+        items = pcts.map((p) => ({ pct: p, sec: null }));
+      }
+      for (const it of items) {
+        const r = await page.evaluate(seek, { pct: it.pct, sec: it.sec });
         if (args.guides) await page.evaluate(guides, { W, H, safeSide: 64, safeBottom: args.safeBottom || 170 });
-        const out = path.join(outDir, `${id}@${String(pct).replace('.', '_')}.png`);
+        const tag = it.sec != null
+          ? `sec${String(it.sec).replace('.', '_')}@${String(it.pct).replace('.', '_')}pct`
+          : String(it.pct).replace('.', '_');
+        const out = path.join(outDir, `${id}@${tag}.png`);
         await page.screenshot({ path: out, type: 'png', scale: 'device' });
-        log(`✓ ${id} @${pct}%  seek ${r.seekTo.toFixed(2)}s / 轴长 ${r.dur == null ? '无' : r.dur.toFixed(2)}s  →  ${path.basename(out)}`);
+        log(`✓ ${id} @${it.pct}%  seek ${r.seekTo.toFixed(2)}s / 轴长 ${r.dur == null ? '无' : r.dur.toFixed(2)}s  →  ${path.basename(out)}`);
         n++;
       }
     } catch (e) {

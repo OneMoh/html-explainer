@@ -168,7 +168,7 @@ const PAGE_PROBE = `(() => {
     const hasOwnText = Array.from(el.childNodes).some(n => n.nodeType === 3 && n.textContent.trim());
     if (!hasOwnText) continue;
     const b = el.getBoundingClientRect();
-    leaves.push({ b, nm: el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\\s+/)[0] : el.tagName.toLowerCase() });
+    leaves.push({ b, el, nm: el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\\s+/)[0] : el.tagName.toLowerCase() });
   }
   const pairs = [];
   for (let i = 0; i < leaves.length; i++) {
@@ -182,6 +182,24 @@ const PAGE_PROBE = `(() => {
       const span = Math.max(A.right, B.right) - Math.min(A.left, B.left);
       if (span < W * 0.72) continue;                                  // 合起来要铺满画布
       pairs.push(leaves[i].nm + ' ↔ ' + leaves[j].nm + ' (间隙 ' + rnd(gap) + 'px, 合宽 ' + rnd(span) + 'px)');
+    }
+  }
+
+  // ── 6) 钩子与其它文本块的重叠（旧版的漏检点）──
+  //     钩子行高一旦撑到统计块上，字会直接压字，但四边边距/行宽全部照样 PASS。
+  //     实测案例：9:16 钩子 3 行 ×132px 顶到 1646px，与 bottom:196px 的信息行
+  //     压了 34px，旧判据全绿。所以必须把"块间垂直重叠"独立成一条。
+  const hookOverlap = [];
+  if (hookEl) {
+    const hb = hookEl.getBoundingClientRect();
+    for (const L of leaves) {
+      if (L.el === hookEl || hookEl.contains(L.el) || L.el.contains(hookEl)) continue;
+      const A = hb, B = L.b;
+      const ox = Math.min(A.right, B.right) - Math.max(A.left, B.left);
+      const oy = Math.min(A.bottom, B.bottom) - Math.max(A.top, B.top);
+      if (ox <= 1 || oy <= 1) continue;
+      if ((ox * oy) / Math.min(A.width * A.height, B.width * B.height) < 0.06) continue;
+      hookOverlap.push(L.nm + ' 压住钩子 ' + rnd(ox) + '×' + rnd(oy) + 'px');
     }
   }
 
@@ -213,6 +231,7 @@ const PAGE_PROBE = `(() => {
     // 非数字的比钩子大才是"焦点被抢"。
     biggerThanHook: biggerThanHook.slice(0, 5),
     columnPairs: pairs.slice(0, 4),
+    hookOverlap: hookOverlap.slice(0, 4),
   };
 })()`;
 
@@ -315,6 +334,10 @@ async function main() {
         add('悖论数字未压过钩子', numBigger.every(b => b.fontSize <= m.hook.fontSize * 1.35),
           `${numBigger.map(b => b.sel + ' ' + b.fontSize + 'px').join(' ; ')}（上限 钩子×1.35 = ${Math.round(m.hook.fontSize * 1.35)}px）`, 'warn');
       }
+
+      // 钩子与其它文本块的重叠 —— 旧版漏检：字压字，但边距/行宽/字数全绿
+      add('钩子不与其它文字重叠', (m.hookOverlap || []).length === 0,
+        (m.hookOverlap || []).length ? m.hookOverlap.join(' ; ') : 'OK');
 
       const maxW = spec.width - spec.marginX * 2;
       const over = m.hook.lines.filter(L => L.width > maxW + 1);

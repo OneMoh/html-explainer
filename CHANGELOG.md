@@ -11,6 +11,106 @@
 
 ---
 
+## [2.0.0] — 2026-10-03
+
+> **一次「表现力 + 生产力」的升级**：v1.x 解决「能不能稳定出片」，v2.0 解决「出得快不快、好不好看、
+> 每期像不像同一部片子」。
+>
+> **完全向后兼容**：所有新能力都是可选开关。不带任何新参数跑，行为与 v1.4.3 一致
+> （`--profile legacy` 逐位复现旧成片）。原有接口、23 个模板、封面流程**一律未破坏**。
+
+### 新增 —— 动效（`assets/motion.js`）
+
+- **★ 动效库**：把「镜头语言」变成时间的纯函数。40+ 动作词汇分 5 组：
+  - `enter`（到场）：`riseWord` / `dropLetters` / `springIn` / `blurAway` / `riseFromMask` / `typeChars` / `checkOff` / `flyPlane`
+  - `carry`（承接）：`morphBox` / `irisOpen` / `diveInto` / `arcHop` / `gatherTo` / `railShift` / `sealDisc` / `burstWord`
+  - `contact`（接触）：`landHit` / `splitOnHit` / `tapPress` / `pointer` / `stretch2` / `sim.*`（磁吸/跟随/软体/绳索）
+  - `camera`（运镜）：`camTrack` / `layerMatrix` / `depthBlur` / `whipPan` / `camShake` / `slowPush` / `gridDots` / 坐标互转
+  - `ambience`（环境）：`swiftSpring` / `glowField` / `floodRings` / `noiseField`（5 套色带）/ `beltLoop`
+- **确定性**：所有随机走 `seededRng`，渲染路径上不出现 `Math.random()` —— 逐帧渲染与实时预览一致。
+- 自测 `tests/test_motion.mjs`（148 条断言）。
+
+### 新增 —— 主题驱动模板编排（`scripts/style_director.py`）
+
+- **★ 读解说词，不填表**：按位置 + 文本线索推断每场角色（开场/陈述/数据/原理/例证/反差/收束/落版）。
+- **★ 挑主风格**：按角色 × **子类别** × 时长区间 × 内容词 × 受众 × 节奏打分。子类别级适配修正了
+  "类别太粗"（`presentation` 下有 11 个子类，讲数据用 `hero` 是错的）。
+- **★ 混用与局部替换**：按能量预算给部分场搭**次风格**做局部元素替换（不是整场换皮）。
+- **★ 动态开头**：`opener_variant` 由主题哈希轮换，不再是写死的那个。
+- **★ 动态转场**：`transition_out` 由相邻两场能量差决定，不是清一色淡入淡出。
+- **★ 多样性约束**：风格数上限 / 连续同风格上限 / 开场≠第二场；`--pin` 是硬约束。
+  **只允许同类别内合并**（跨类别会讲歪），合并代价 > 10 分就放弃合并并如实记录。
+- **防雷同**：容差带内按主题哈希轮换 —— 同一题材每次换一批画面。`--band 0` 完全确定（供回归）。
+- **可解释**：产物 `style-plan.json` 的 `why` 字段逐条说明"这场为什么被挑中"。
+- 自测 `tests/test_style_director.py`（60 条断言）。
+
+### 新增 —— 画质/帧率档位与渲染提速（`scripts/render_video.mjs`）
+
+- **★ 成套档位** `--profile draft|balanced|final|master|legacy`，或 `--quality 1080p|2k|4k` ×
+  `--fps 30|60` 自由组合。显式开关永远覆盖档位默认值。
+- **★ 快门运动模糊** `--shutter 180`：**线性光下的多样本积分**（不是 blur 滤镜）。
+  `hold` 静帧只截 2 张就跳过 → 静止段几乎不额外耗时；样本数按 `window.__motion()` 自适应。
+- **★ 多浏览器进程级并行** `--workers N`：各自一个 chromium 进程，截图是 CPU 活，可拉满多核。
+- **★ 断点续渲** `--resume`（已积分的帧直接跳过）、**定期重启浏览器** `--recycle N`（4K 长片防 OOM）。
+- 画质只改 `deviceScaleFactor`（1× / 1.333× / 2×），**布局逐像素不变**，只是采样更密。
+- 中间帧格式（`--png-fast` / `--jpeg`）与最终编码质量（`--crf` / `--preset`）**解耦**。
+
+### 新增 —— 渲染通道确认（渲染前必问用户）
+
+- **★ 渲染前必须先问用户选哪条中间帧通道**：`png` / `png-fast` / `jpeg q95` / `jpeg q82`，
+  附**逐帧耗时、相对速度、画质、中间帧体积**对照，并给出自动推荐口径
+  （有满幅照片一律不默认 PNG；4K 终稿必须换通道）。
+- 规格落进 `consent.json` 的 `render_channel` 字段，由 **`gate_check.py` 挡在渲染之前**
+  （`--phase render` 只查渲染前必须拍板的项）—— 把「问一句」从纸面规则变成硬闸门，
+  agent 不能凭「上次用的 png-fast」静默开工。
+- 对照表与询问话术见 `SKILL.md` 确认点 5 与 `references/render-profiles.md` §0。
+
+### 新增 —— 基准工装（`scripts/bench_render.py`）
+
+- 合成复杂度可控的项目（N 场 × M 动元素，`--heavy` 模拟高熵帧），同机多档位各渲一遍，
+  拉出「截图耗时 / fps / 体积」对比表 —— **优化前后同表对比**，不靠感觉。
+
+### 性能（本机实测：16 核 / Windows / Chrome / 纯 CSS 图形帧）
+
+2 场 × 1.0s 合成项目的同机对比（`scripts/bench_render.py`）：
+
+| 档位 | 输出 | fps | 帧数 | 截图 s | 积分 s | 总 s | 帧/秒 | 加速比 | 体积 MB |
+|---|---|---|---|---|---|---|---|---|---|
+| `legacy` | 1920×1080 | 30 | 60 | 21.4 | 0.0 | 23.6 | 2.8 | ×1.00 | 0.38 |
+| `draft` | 1920×1080 | 30 | 60 | 6.2 | 0.0 | 8.0 | 9.7 | **×3.47** | 0.37 |
+| `balanced` | 1920×1080 | 30 | 60 | 16.6 | 7.1 | 27.5 | 3.6 | ×1.29 | 0.49 |
+| `4k30` | 3840×2160 | 30 | 60 | 16.9 | 5.9 | 26.4 | 3.5 | ×1.26 | 0.49 |
+| `4k60` | 3840×2160 | 60 | 120 | 25.4 | 8.8 | 37.5 | 4.7 | **×1.69** | 0.57 |
+
+- **并行比分辨率更划算**：`4k30`（4× 像素）的截图吞吐几乎追平 1080p 的 `balanced`（都 ~3.5 帧/秒）——
+  真正拖慢 `legacy` 的是**单浏览器串行**，不是分辨率。
+- 优化前后：`balanced` 总耗时 70.4 s → **33.0 s**（其中积分 + 清理 53.6 s → **8.5 s**）。
+- 完整数据与读法见 `references/render-profiles.md` §5。
+
+### 修复
+
+- `scripts/render_video.mjs`：**`--out` 相对路径的解析口径**。原先按**调用方 cwd** 解析，
+  与 `--audio`（按项目目录解析）不一致，导致文档里的 `--out out/<slug>.mp4` 落到错误目录、
+  `.render.json` 在预期位置找不到。现统一为**按项目目录解析**（绝对路径原样），并自动建父目录。
+- `scripts/bench_render.py`：
+  1. 档位覆盖 `--fps` 时未同步 `layout._total.total_frames` —— 渲染器**采信声明帧数**，
+     于是 `4k60` 按旧 fps 的帧数渲染、时长少一半，基准不可比。现按档位 fps 同步声明帧数、跑完还原。
+  2. 某档无元数据时，报告阶段 `NoneType.__format__` 崩溃。现对缺失字段降级显示。
+
+### 变更
+
+- `SKILL.md` 版本号 `1.4.3` → `2.0.0`；description 与命令流水线补入新能力（动效 / 编排 / 档位）。
+- `.gitignore`：补 `.scratch/`（基准测试现场，不该入库）。
+
+### 文档
+
+- 新增 `references/motion-library.md`、
+  `references/style-director.md`、`references/render-profiles.md`。
+- `THIRD_PARTY_NOTICES.md`：新增"v2.0 新增能力与依赖"一节（v2.0 未引入新依赖）
+  （说明新增能力只用已声明的库，不引入额外运行时组件）。
+
+---
+
 ## [1.4.3] — 2026-09-29
 
 > 两个「只在运行时才暴露」的静默错误，各补一道**构建期闸门**。
@@ -546,6 +646,7 @@
 - 23 种画面风格目录，8 个类别，按改编成本分类。
 - `setup_env.sh` 做首次环境自检，`--install` 装缺失依赖；`package_skill.py` 打可移植 zip。
 
+[2.0.0]: https://github.com/OneMoh/html-explainer/releases/tag/v2.0.0
 [1.4.3]: https://github.com/OneMoh/html-explainer/releases/tag/v1.4.3
 [1.4.2]: https://github.com/OneMoh/html-explainer/releases/tag/v1.4.2
 [1.4.1]: https://github.com/OneMoh/html-explainer/releases/tag/v1.4.1
