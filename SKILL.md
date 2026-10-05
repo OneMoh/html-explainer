@@ -1,6 +1,6 @@
 ---
 name: html-explainer
-version: 2.0.0
+version: 2.0.1
 description: 把任意主题做成「讲解/科普视频」并渲染成 MP4：调研→审查→解说词→字幕→配音（edge-tts，或火山引擎语音合成 2.0）→**主题驱动风格编排**→并行构建 HTML 场景→确定性逐帧渲染→成片后出多画幅封面。**画面语言内置 23 个模板风格 / 8 个类别**（大胆信号卡、奢华极简、NYT 数据图表、瑞士网格、故障艺术、胶片漏光、流体 Hero、Logo 收尾、东方柔和有机、VFX 文字光标…共 23 种风格，含每种的画布/配色/字体/时间轴规范，见 references/style-catalog.md）。**v2.0 新增**：①**动效库**（`assets/motion.js`，5 组共 40+ 动作词汇：弹簧/进出场/承接/接触/运镜/环境光）；②**4K60 + 快门运动模糊**（`--quality / --fps / --profile`，线性光积分，静帧自动跳过）；③**渲染提速**（多浏览器进程级并行 / `--png-fast` / `--jpeg` / `--resume` 断点续渲），且**渲染前必须先问用户选哪条中间帧通道**（`png` / `png-fast` / `jpeg q95` / `jpeg q82`，附速度对比与推荐；未拍板由 `gate_check.py --phase render` 挡下）；④**主题驱动模板编排**（`scripts/style_director.py`，按内容类型/情绪/节奏/受众挑风格、混用与局部替换、动态开头与转场，不再一片一模板）。流程规范与音画同步体系承自 anything2explainer（词边界字幕、两级时钟、语速标定、多 agent 分工与 QC 判据），渲染层为自研 seek 式渲染器。**封面默认 16:9 + 3:4 两张**：抖音主封面 1920×1080 + 兼容主页栅格 3:4 的 1440×1080（独立重排，防切字）；**竖版投放再加 9:16 的 1080×1920**（左右并置必须改上下堆叠、上下边距让开平台 UI 层）。独立可移植：GSAP 内置、playwright-core 随包、ffmpeg 走 imageio-ffmpeg 回退、浏览器自动探测 Chrome/Edge；**不依赖 html-video / anything2explainer 任何代码或目录**。触发场景：要做科普/讲解/教学/知识/产品类视频、"讲一下 X 做成视频"、要用 html-video 那种模板化画面但更稳的音画同步、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面/9:16 封面、anything2explainer 换 HTML 渲染、或提到 html-explainer / HTML 讲解视频 / explainer video / MG 视频。
 agent_created: true
 ---
@@ -112,7 +112,7 @@ node <skill>/scripts/check_layout.mjs   .             # ★ 几何体检：越�
 node <skill>/scripts/render_video.mjs   . [--audio audio/narration-full.mp3] [--profile draft|balanced|final|master] [--quality 1080p|2k|4k] [--fps 30|60] [--shutter 180] [--preview 30] [--keep-frames] [--only <场景id>] [--mux-only] [--png-fast|--jpeg] [--workers N] [--concurrency N] [--resume]   # 渲染：out/<slug>.mp4（★ 通道/档位先按确认点 5 问过用户）
 "$PY" <skill>/scripts/qc_check.py       --project .   # 体检 + 抽帧速览图
 node <skill>/scripts/cover_build.mjs    .             # 封面：out/cover_169.png + cover_34.png（竖版再加 cover_916.png）
-node <skill>/scripts/check_cover.mjs    .             # 封面终态几何实测：边距/钩子字号/行宽/孤字/9:16 禁两栏（FAIL 清零再交）
+node <skill>/scripts/check_cover.mjs    .             # 封面终态几何实测：边距/钩子字号/行宽/孤字/文字重叠/9:16 禁两栏（FAIL 清零再交）
 ```
 
 配音引擎（**跑之前必须先问用户**，见确认点 3）：`edge`（默认，免费免密钥）或
@@ -240,7 +240,7 @@ node <skill>/scripts/peek_frame.mjs . <帧id> --at 100 --guides  # 叠十字中�
 **出图后必跑几何实测** —— 肉眼只能看出明显问题，差 20px 的贴边、多出一字的孤行全靠它抓：
 
 ```bash
-node <skill>/scripts/check_cover.mjs .              # 量三张：边距 / 钩子字号 / 行宽 / 孤字 / 9:16 禁两栏
+node <skill>/scripts/check_cover.mjs .              # 量三张：边距 / 钩子字号 / 行宽 / 孤字 / 文字重叠 / 9:16 禁两栏
 node <skill>/scripts/check_cover.mjs . --only 916   # 只量一张
 node <skill>/scripts/check_cover.mjs . --shot       # 顺手把 1x 预览图丢到 out/
 ```
@@ -441,7 +441,7 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 | `scripts/bench_render.py` | **渲染管线基准工装**：合成复杂度可控的项目 → 同机多档位各渲一遍 → 拉出「截图耗时/fps/体积」对比表（优化前后同表对比） |
 | `scripts/qc_check.py` | 流/时长/音量/抽帧体检 + contact sheet |
 | `scripts/cover_build.mjs` | 封面渲染器：`169`(1920×1080) / `34`(1440×1080) / `916`(1080×1920) 各一份独立排版 → 2 倍图；`--at` / `--only` / `--jpg`；**缺哪张就跳哪张** |
-| `scripts/check_cover.mjs` | **封面终态几何实测器**：边距 / 钩子字号 / 钩子是否最大文字 / 行宽 / 孤字断行 / 9:16 禁左右两栏 / 越界；`--only` / `--json` / `--shot`；退出码 0/1 |
+| `scripts/check_cover.mjs` | **封面终态几何实测器**：边距 / 钩子字号 / 钩子是否最大文字 / 行宽 / 孤字断行 / **文字重叠（量字墨，不量行框）** / 9:16 禁左右两栏 / 越界；`--only` / `--json` / `--shot`；退出码 0/1 |
 
 **辅助工具**
 
