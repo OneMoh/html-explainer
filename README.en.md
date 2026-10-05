@@ -314,34 +314,46 @@ node <skill>/scripts/render_video.mjs . --list-profiles
 | `legacy` | 1080p | project fps | off | fine PNG | **reproduces a v1.4.x video bit for bit** (hard proof of back-compat) |
 | `draft` | 1080p | 30 | off | `png-fast` | preview / iteration, fastest |
 | `balanced` | 1080p | 30 | 180° | `png-fast` | **default** (quality/speed balance) |
-| `final` | 4K | 60 | 180° | `png-fast` | final cut (~8–12× the time of 1080p30) |
+| `final` | 4K | 60 | 180° | `png-fast` | final cut (4K60; raw workload ~8–12× a 1080p30 run, largely absorbed by parallelism) |
 | `master` | 4K | 60 | 180° | fine PNG | maximum quality (very slow) |
 
 Quality only changes `deviceScaleFactor` (1× / 1.333× / 2×), **never the layout** — the same HTML
 is simply sampled more densely, so the composition is pixel-identical.
 
-### Speed: parallelism beats resolution
+### Speed (measured)
 
-Local comparison (16 logical cores / Windows / Chrome / pure CSS frames, two 1.0s synthetic scenes
-via `scripts/bench_render.py`):
+A real **3 min 20 s · 1080p30 · 5982-frame** video (this machine: Windows 10 · 16 logical cores ·
+Chrome · 6 browser processes · shutter 180°/8 samples, enabled on 3 scenes only = 35.3% of frames):
 
-| Profile | Output | fps | frames/s | vs `legacy` |
-|---|---|---|---|---|
-| `legacy` | 1920×1080 | 30 | 2.8 | ×1.00 |
-| `draft` | 1920×1080 | 30 | 9.7 | **×3.47** |
-| `balanced` | 1920×1080 | 30 | 3.6 | ×1.29 |
-| `4k30` | 3840×2160 | 30 | 3.5 | ×1.26 |
-| `4k60` | 3840×2160 | 60 | 4.7 | ×1.69 |
+| Stage | `--png-fast` (default) | `--jpeg --jpeg-quality 95` |
+|---|---|---|
+| Capture (5982 frames · 11995 samples) | 365.4 s | 365.8 s |
+| Shutter integration | 67.1 s | 63.0 s |
+| Encode + tail | 36.8 s | 31.9 s |
+| **End to end** | **469.2 s ≈ 7 min 49 s** | 460.7 s ≈ 7 min 41 s |
+| Output size | **10.81 MB** | 11.02 MB |
 
-- **What makes `legacy` slow is the single serial browser, not the resolution** — `4k30` (4× the
-  pixels) nearly matches 1080p `balanced` in capture throughput. So `--workers N` is the biggest
-  lever, while `--concurrency` does nothing (intermediate-frame encoding is serial inside the
-  browser process).
-- Before/after: `balanced` total time **70.4 s → 33.0 s** (integration + cleanup **53.6 s → 8.5 s**).
-- Shutter is the **most expensive** item: on one 1080p30 video, shutter off gives **18.4 frames/s**
-  (8525 frames in ~9 min 7 s); the default shutter (180° / 8 samples) drops to 12–110 frames per
-  *minute*. **Only enable it where it matters** — whitelist scenes with `--shutter-only <id,id>`,
-  and when a frame exports `__motion`, `--motion-hold` drops the static ones automatically.
+Derived: **16.4 frames/s** average capture throughput across the film, **30.5 ms** average per
+capture (including scene switches and preload); **26.65 frames/s** peak throughput once a scene is
+warm. **Shutter eats only 13.7% of the time** — because it lands on just 35.3% of the frames.
+
+**Where the speed comes from** (largest lever first):
+
+1. **`--workers N`, true multi-process** — capture is pure CPU work and scales with cores.
+   `--concurrency` does nothing (intermediate-frame encoding is serial inside the browser process;
+   measured throughput at concurrency 1/3/6 is 1.80 / 1.86 / 1.87 frames/s).
+2. **Switching the intermediate-frame channel** — an encode-side lever on par with parallelism;
+   on graphics frames `png-fast` means "same speed + smaller + lossless".
+3. **`--shutter-only` whitelisting** — shutter is the only item you pay for by a multiple. Enable it
+   only on scenes that need the streak; every other scene costs zero: here 35.3% of frames had
+   shutter on, yet they account for only 13.7% of the time.
+4. **`--profile draft` + `--preview`** — while iterating, render just a section with shutter off and
+   get a preview in seconds.
+
+> The numbers above are an **end-to-end measurement of one real film**, which is more trustworthy
+> than a synthetic micro-benchmark — micro-benchmarks lack the signal-to-noise to predict
+> whole-film tail costs. Absolute values vary a lot with machine and frame content; after changing
+> machines, render your own film twice on one channel to calibrate a baseline.
 
 ### Intermediate-frame channels (asked before render; ★default `png-fast`)
 
@@ -360,8 +372,8 @@ via `scripts/bench_render.py`):
 > `--jpeg q95` only wins when frames contain **photos / a 4K final** (fine PNG on photo frames is a
 > 582 ms/frame black hole).
 >
-> End-to-end cost: on a 5982-frame video, JPEG q95 = 460.7 s; switching to PNG-fast is estimated at
-> 468–493 s (**+2%–5%**).
+> End-to-end cost: on the same 5982-frame video, JPEG q95 measured 460.7 s and PNG-fast **measured
+> 469.2 s (+1.85%)** — pixel-lossless costs almost nothing, and the output is 0.21 MB smaller.
 
 The channel is **your** call, not the agent's default: the choice is written to `consent.json`'s
 `render_channel`, and `gate_check.py --phase render` **exits 1** until it is decided, blocking the
