@@ -7,8 +7,11 @@
 Write scenes in HTML → deterministic frame-by-frame rendering → a real MP4. Everything runs
 locally; the core pipeline needs no API key and charges no per-render fee.
 
+Scenes are written with a seekable motion library, styles are picked by a theme-driven
+orchestrator, and rendering supports 4K60, shutter-based motion blur and multi-process parallelism.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.4.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.5-blue.svg)](CHANGELOG.md)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-SKILL.md-8A2BE2.svg)](SKILL.md)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%9C%93-D97757.svg)](#install)
 [![Codex](https://img.shields.io/badge/Codex-%E2%9C%93-000000.svg)](#install)
@@ -47,7 +50,14 @@ You say one sentence:
 > Make a 1-minute explainer video about why the sky is blue.
 
 The skill then walks the agent through: research → script → voiceover → subtitles and beats →
-scene authoring in one of 23 styles → render → QC → covers.
+**style orchestration and scene authoring** → render → QC → covers.
+
+Scenes do not start from a blank page. The skill ships a **seekable motion library** (40+ action
+words — see [Motion library and style orchestration](#motion-library-and-style-orchestration)) and
+a **style orchestrator** that reads the narration itself, works out what role each scene plays, then
+picks styles, mixes them, and decides openers and transitions; the renderer supports 4K60,
+shutter-based motion blur and multi-process parallelism. Every switch is optional: run it with no
+flags and you get the plainest 1080p30 video.
 
 ---
 
@@ -106,6 +116,8 @@ exception and only reads `.claude/skills/`.)
 | Disk | ~2GB per video | Frame PNGs are large; safe to delete after muxing |
 
 `bash setup_env.sh` only reports what is missing; `--install` installs it. No admin rights needed.
+The motion library, the orchestrator and every render profile use only the libraries declared above —
+**no new runtime dependencies are introduced**.
 
 ---
 
@@ -197,6 +209,8 @@ my-video/
 ├── project.json      # slug, fps, size, voice, rate, scene order, chapters
 ├── narration.json    # [{ id, text }] — pipes "|" split subtitle blocks
 ├── theme.css         # every colour, as CSS variables
+├── style-plan.json   # per-scene primary/accent style, role, transition, motion intensity
+├── consent.json      # the six confirmation points (incl. render channel), user-decided
 ├── frames/           # one HTML per scene; <id>.beats.js is generated, never hand-edited
 ├── audio/  render/  research/  script/
 └── out/              # MP4, covers, SRT/VTT, QC report
@@ -219,7 +233,8 @@ bugs becomes impossible.
 
 The trade-off: **every animation must be seekable.** Wall-clock animation (`setInterval`,
 `requestAnimationFrame` counters, CSS `transition` entrances) cannot work and is rejected by
-`lint_frames.py`.
+`lint_frames.py`. It is exactly why the motion library is built as "`t` → a set of numbers": a pure
+function is seekable by construction.
 
 ---
 
@@ -233,7 +248,13 @@ The trade-off: **every animation must be seekable.** Wall-clock animation (`setI
 | **The API key never reaches the agent or the repo** | The Volcano key lives only in `tts.env` (gitignored) and **only the interface package reads it** — the agent calls `tts_volcano.py` and never needs the key. Errors are redacted, `check_integrity.py` enforces a secret guard, and packaging excludes key files. |
 | **Two-level clock** | Frame length uses MP3 **container duration** (keeps A/V in sync); the final subtitle block ends on **actual speech end**. |
 | **23 visual styles** | 8 categories, each with its canvas, type scale, timeline and colour discipline recorded. No designing from a blank page. |
+| **Motion library (40+ action words)** | `assets/motion.js` turns camera language into **pure functions of time**: five groups — enter / carry / contact / camera / ambience. Stateless, composable, seekable frame by frame; randomness goes through `seededRng`, so no `Math.random()` on the render path. |
+| **Theme-driven style orchestration** | `style_director.py` reads the script, infers each scene's role (opener / statement / data / mechanism / evidence / close), then picks a primary style, adds accent styles, and decides opener variants and transitions. **No more one-style-per-video**, and every scene carries a `why`. |
 | **Multi-format covers** | Every video ships a 16:9 cover plus an **independently re-laid-out** 3:4 cover — not a crop. Cropping loses 57.8% of the width; add 9:16 for vertical placements. `check_cover.mjs` measures final-state geometry. |
+| **Quality × frame-rate profiles** | `--profile draft\|balanced\|final\|master\|legacy`, or `--quality 1080p\|2k\|4k` × `--fps 30\|60` in any combination. Quality only changes `deviceScaleFactor`, so **layout is pixel-identical**. `legacy` reproduces a v1.4 video bit for bit. |
+| **Shutter-based motion blur** | `--shutter 180` integrates multiple samples **in linear light** (not a blur filter); still frames stop after two captures. Three-level gating (`--shutter-only` / `--motion-hold`) keeps the cost off static frames. |
+| **Multi-process + resumable renders** | `--workers N` spawns N independent browser processes (capture is CPU work, so it scales with cores); `--resume` skips already-integrated frames; `--recycle N` restarts the browser periodically to avoid OOM on long 4K jobs. |
+| **The render channel is your call** | Before rendering it **must** ask which intermediate-frame channel you want — `png-fast` (★default) / `jpeg q95` / `png` / `jpeg q82` — recorded in `consent.json` and gated by `gate_check.py --phase render`. |
 | **Pre-render audit + QC** | `lint_frames.py` reports contract violations before you spend render time; `qc_check.py` checks loudness, drift and samples frames. |
 | **Structurally offline** | GSAP vendored; browser auto-detected; ffmpeg falls back to the `imageio-ffmpeg` static binary; web fonts are banned by contract. |
 
@@ -249,10 +270,14 @@ flowchart LR
     S --> D["tts_build.py<br/><i>edge-tts / Volcano to MP3 + word boundaries</i>"]
     D --> E["timeline_build.py<br/><i>global axis + stitched track</i>"]
     E --> F["subs.py<br/><i>subs.json, srt/vtt, beats.js</i>"]
-    F --> G["frames/*.html<br/><i>one scene per line, styled from the library</i>"]
+    F --> SD["style_director.py<br/><i>reads script, picks styles → style-plan.json</i>"]
+    SD --> G["frames/*.html<br/><i>one scene per line · motion library HXM</i>"]
     G --> H{"lint_frames.py<br/>eight contract rules"}
     H -->|fail| G
-    H -->|pass| I["render_video.mjs<br/><i>seek per frame to PNG</i>"]
+    H -->|pass| GC{"gate_check.py<br/>channel decided by the user?"}
+    GC -->|not yet| Q["ask the user"]
+    Q --> GC
+    GC -->|decided| I["render_video.mjs<br/><i>seek per frame → png-fast / jpeg</i>"]
     I --> J["ffmpeg<br/><i>H.264 + AAC mux</i>"]
     J --> K[("out/slug.mp4")]
     I --> L["qc_check.py<br/><i>loudness, drift, contact sheet</i>"]
@@ -261,9 +286,87 @@ flowchart LR
 
     style K fill:#1f6feb,color:#fff
     style H fill:#8957e5,color:#fff
+    style GC fill:#8957e5,color:#fff
+    style SD fill:#bf8700,color:#fff
     style M fill:#238636,color:#fff
     style N fill:#238636,color:#fff
 ```
+
+---
+
+## Rendering: profiles, speed and channels
+
+"How to render" splits into two orthogonal knobs: the **profile** (quality × frame rate × shutter ×
+parallelism) and the **intermediate-frame channel** (what format each frame is stored as). Both are
+**decoupled** from final encode quality (`--crf` / `--preset`).
+
+### Profiles
+
+`--profile` is a preset bundle; any explicit flag (`--quality / --fps / --shutter / --workers /
+--crf`) **overrides** the matching item in the profile. List them all:
+
+```bash
+node <skill>/scripts/render_video.mjs . --list-profiles
+```
+
+| Profile | Quality | FPS | Shutter | Intermediate | Use |
+|---|---|---|---|---|---|
+| `legacy` | 1080p | project fps | off | fine PNG | **reproduces a v1.4.x video bit for bit** (hard proof of back-compat) |
+| `draft` | 1080p | 30 | off | `png-fast` | preview / iteration, fastest |
+| `balanced` | 1080p | 30 | 180° | `png-fast` | **default** (quality/speed balance) |
+| `final` | 4K | 60 | 180° | `png-fast` | final cut (~8–12× the time of 1080p30) |
+| `master` | 4K | 60 | 180° | fine PNG | maximum quality (very slow) |
+
+Quality only changes `deviceScaleFactor` (1× / 1.333× / 2×), **never the layout** — the same HTML
+is simply sampled more densely, so the composition is pixel-identical.
+
+### Speed: parallelism beats resolution
+
+Local comparison (16 logical cores / Windows / Chrome / pure CSS frames, two 1.0s synthetic scenes
+via `scripts/bench_render.py`):
+
+| Profile | Output | fps | frames/s | vs `legacy` |
+|---|---|---|---|---|
+| `legacy` | 1920×1080 | 30 | 2.8 | ×1.00 |
+| `draft` | 1920×1080 | 30 | 9.7 | **×3.47** |
+| `balanced` | 1920×1080 | 30 | 3.6 | ×1.29 |
+| `4k30` | 3840×2160 | 30 | 3.5 | ×1.26 |
+| `4k60` | 3840×2160 | 60 | 4.7 | ×1.69 |
+
+- **What makes `legacy` slow is the single serial browser, not the resolution** — `4k30` (4× the
+  pixels) nearly matches 1080p `balanced` in capture throughput. So `--workers N` is the biggest
+  lever, while `--concurrency` does nothing (intermediate-frame encoding is serial inside the
+  browser process).
+- Before/after: `balanced` total time **70.4 s → 33.0 s** (integration + cleanup **53.6 s → 8.5 s**).
+- Shutter is the **most expensive** item: on one 1080p30 video, shutter off gives **18.4 frames/s**
+  (8525 frames in ~9 min 7 s); the default shutter (180° / 8 samples) drops to 12–110 frames per
+  *minute*. **Only enable it where it matters** — whitelist scenes with `--shutter-only <id,id>`,
+  and when a frame exports `__motion`, `--motion-hold` drops the static ones automatically.
+
+### Intermediate-frame channels (asked before render; ★default `png-fast`)
+
+| Channel | Relative speed (graphics frames / full-frame photos) | Quality | Size (1080p graphics frames) | Position |
+|---|---|---|---|---|
+| **`--png-fast`** ★**default** | **×1.02 / ×4.4** | **pixel-lossless** | **0.10 MB/frame** | Same speed as JPEG q95 on pure CSS/MG frames, smaller → the default |
+| `--jpeg --jpeg-quality 95` | ×1.00 / **×13** | PSNR 41.65 dB (below the final encode's own distortion) | 0.12 MB/frame | First choice when frames contain **full-frame photos / heavy compositing, or for 4K finals** |
+| `--png` | ×1.16 / ×1.0 | pixel-lossless | 0.08 MB/frame | Only for `legacy` reproduction / the `master` profile |
+| `--jpeg --jpeg-quality 82` | fastest | slightly lower | ~0.08 MB/frame | Previews only |
+
+> **Calibration trap: the "×13 / ×4.4" figures are full-frame *photo* ratios — do not apply them to
+> graphics frames.** The vast majority of videos made with this skill are **pure CSS/MG graphics
+> frames** (large flat colour areas plus crisp text), and PNG's deflate is extremely efficient on
+> those — measured, **JPEG q95 and PNG-fast run at the same speed** (27.14 vs 26.65 frames/s, ×1.02),
+> and PNG-fast is **smaller and lossless**. That is why the default is `--png-fast`;
+> `--jpeg q95` only wins when frames contain **photos / a 4K final** (fine PNG on photo frames is a
+> 582 ms/frame black hole).
+>
+> End-to-end cost: on a 5982-frame video, JPEG q95 = 460.7 s; switching to PNG-fast is estimated at
+> 468–493 s (**+2%–5%**).
+
+The channel is **your** call, not the agent's default: the choice is written to `consent.json`'s
+`render_channel`, and `gate_check.py --phase render` **exits 1** until it is decided, blocking the
+render. The full profile table, how to read the benchmarks, and the shutter disk guard are in
+[`references/render-profiles.md`](references/render-profiles.md) (Chinese).
 
 ---
 
@@ -307,7 +410,56 @@ Two classes, with very different adaptation costs:
 - **`gsap` (11)** — multiple compositions loaded from a CDN. **Do not port the code.** Take only
   the visual DNA and re-express it in CSS keyframes.
 
-Rotate 2–4 styles per project. Eight scenes sharing one look reads as monotonous.
+Rotate 2–4 styles per project. Eight scenes sharing one look reads as monotonous — and the
+orchestrator does that rotation for you (below).
+
+---
+
+## Motion library and style orchestration
+
+### Motion library — camera language as pure functions of time
+
+`assets/motion.js` (exposed as `window.HXM` in the browser) abstracts the actions that recur across
+the 23 templates into **40+ action words**, in five groups:
+
+| Group | Actions (excerpt) |
+|---|---|
+| `enter` | `riseWord` `dropLetters` `springIn` `blurAway` `riseFromMask` `typeChars` `checkOff` `flyPlane` |
+| `carry` | `morphBox` `irisOpen` `diveInto` `arcHop` `gatherTo` `railShift` `sealDisc` `burstWord` |
+| `contact` | `landHit` `splitOnHit` `tapPress` `pointer` `stretch2` `sim.*` (magnet / follow / soft-body / rope) |
+| `camera` | `camTrack` `layerMatrix` `depthBlur` `whipPan` `camShake` `slowPush` `gridDots` + coordinate conversion |
+| `ambience` | `swiftSpring` `glowField` `floodRings` `noiseField` (5 colour ramps) `beltLoop` |
+
+Every action is **`t` (absolute seconds) → a set of numbers**: stateless, touching neither the DOM
+nor a canvas, so it can be **seeked frame by frame** — the same `t` always yields the same numbers.
+All randomness goes through `seededRng`, and `Math.random()` **never appears on the render path**,
+so frame-by-frame rendering matches live preview. `tests/test_motion.mjs` holds 148 assertions.
+
+Authoring a scene is no longer a matter of hand-tuning easing curves from scratch: you pick from
+this vocabulary, combine and parameterise — a scene is usually a few layers of "entrance + carry +
+a touch of camera + ambience" stacked together.
+
+### Style orchestration — let the topic drive the template, not the reverse
+
+`scripts/style_director.py` **reads the narration itself**, infers what role each scene plays
+(opener / statement / data / mechanism / evidence / contrast / close / outro), scores a **primary
+style** by role × sub-category × duration × content words × audience × pace, attaches **accent
+styles** to selected scenes for local element replacement, and decides opener **variants** (rotated
+by a topic hash) and **transitions** (driven by the energy delta between neighbouring scenes):
+
+```bash
+# dry-run first to inspect the result, then drop --dry-run to write it
+python scripts/style_director.py --project . --dry-run
+python scripts/style_director.py --project . --mood calm --pace slow --audience general --pin hook=bold-signal
+```
+
+The emitted `style-plan.json` carries `role / primary / motion_intensity / transition_out / why` per
+scene — "why this scene got this style" is inspectable. Diversity constraints (a cap on the number
+of styles, a cap on consecutive repeats, opener ≠ second scene) plus `--pin` hard constraints stop
+it from degenerating back into one-style-per-video. `--seed` gives the same topic a fresh set of
+scenes each time, while `--band 0` is fully deterministic (for regression). Full rules in
+[`references/style-director.md`](references/style-director.md); the action vocabulary in
+[`references/motion-library.md`](references/motion-library.md) (both Chinese).
 
 ---
 
@@ -352,6 +504,7 @@ Full rules and the pre-upload checklist: [`references/cover-guide.md`](reference
 | Video comes out 1280×720 | `viewport` was passed to `browser.launch()` — it is a *context*-level option | Pass it to `newPage()` |
 | Cover renders at 1× | Same trap, `deviceScaleFactor` twin | Pass to `newPage()` + `screenshot({ scale: 'device' })` |
 | Numbers render but never move | The seek suppressed `onUpdate` callbacks | Renderer fixed (`pause(t, false)`); use a transform-based number reel in scenes |
+| ffmpeg dies on the first frame under `--jpeg` (`unsupported coding type`) | "Hold" frames were written as a `.jpg` name holding PNG bytes (PIL sniffs by content and reads them; ffmpeg decodes by extension and crashes) | Upgrade to v2.0.4 or later, where this is fixed |
 | `No such file or directory` on Windows | Non-ASCII path — Windows ffmpeg reads UTF-8 as ANSI | Keep paths ASCII |
 | Subtitles drift / land in the wrong place | TTS returned no word timestamps, so `subs.py` fell back to **character-count interpolation** (a single stderr warning) | Check whether `tts_build` printed `⚠ no word timestamps`; switch to a supported voice (zh/en Doubao 2.0) |
 | Volcano error `resource ID is mismatched with speaker related resource` | `speaker` got a display name instead of a voice ID; or a cloned voice paired with the preset resource ID | Use a built-in voice name/ID (the package resolves it); for cloned voices set `VOLC_RESOURCE_ID=seed-icl-2.0` |
@@ -359,7 +512,7 @@ Full rules and the pre-upload checklist: [`references/cover-guide.md`](reference
 | Volcano `network unreachable` | The package **bypasses the system proxy by default** (China-mainland endpoint) | If you really need a proxy, set `VOLC_PROXY=http://127.0.0.1:<port>` |
 | Subtitles sit one frame late after a re-run | A cache hit dropped the head-trim amount (historical bug, fixed) | Upgrade to v1.3.0+; the cache format now carries `lead_cut_sec` |
 
-**`references/lessons.md` is the most valuable file in this repository.** 56 numbered entries, each
+**`references/lessons.md` is the most valuable file in this repository.** 130 numbered entries, each
 one a bug where "the video looked fine but was wrong" — including how it was misdiagnosed at first.
 Read it before debugging from scratch.
 
@@ -399,9 +552,11 @@ design specification and engineering experience.
   *Difference:* it relies on real-time recording; this project seeks frame by frame, so output is
   reproducible.
 
-**This project's own parts:** the deterministic seek renderer, `B()` beat anchoring, the
-multi-format cover system (and its geometry checker), and the criteria in `lint_frames.py` /
-`qc_check.py`. Full attribution and the per-style
+**This project's own parts:** the deterministic seek renderer, `B()` beat anchoring, the **motion
+library** (`assets/motion.js`), the **style orchestrator** (`style_director.py`), the **render
+profile and channel system** (quality/frame rate/shutter/parallelism,
+`references/render-profiles.md`), the multi-format cover system (and its geometry checker), and the
+criteria in `lint_frames.py` / `qc_check.py`. Full attribution and the per-style
 mapping are in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) (Chinese).
 
 If you want React component animation or Studio-style visual collaboration, go straight to the two

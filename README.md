@@ -6,8 +6,10 @@
 
 HTML 写画面 → 确定性逐帧渲染 → 真 MP4。全本地跑，核心链路零 API key、零按次计费。
 
+画面用一套可 seek 的动效库写，风格由主题驱动编排，渲染支持 4K60、快门运动模糊与多进程并行。
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.4.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.5-blue.svg)](CHANGELOG.md)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-SKILL.md-8A2BE2.svg)](SKILL.md)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%9C%93-D97757.svg)](#安装)
 [![Codex](https://img.shields.io/badge/Codex-%E2%9C%93-000000.svg)](#安装)
@@ -44,7 +46,12 @@ WorkBuddy / Cursor / Gemini CLI 等都能直接加载。内部是普通的 Pytho
 
 > 把「为什么天空是蓝色的」做成一条 1 分钟的讲解视频。
 
-技能会带着智能体走完：调研 → 解说词 → 配音 → 字幕与节拍 → 挑风格写画面 → 渲染 → 体检 → 封面。
+技能会带着智能体走完：调研 → 解说词 → 配音 → 字幕与节拍 → **编排风格并写画面** → 渲染 → 体检 → 封面。
+
+画面不必对着空白页从零写。技能内置一套**可 seek 的动效库**（40+ 动作词汇，见
+[动效库与模板编排](#动效库与模板编排)），和一份**模板编排器** —— 它读解说词本身，判断每场在片子里
+扮演什么角色，再挑风格、混用、决定开场与转场；渲染层则支持 4K60、快门运动模糊与多进程并行。
+这些开关都是可选的：不带任何参数跑，就是一条最朴素的 1080p30 片子。
 
 ---
 
@@ -101,6 +108,7 @@ Windows 上 `~` 就是 `C:\Users\<你的用户名>`。
 | 磁盘 | 每条成片约 2GB | 帧 PNG 体积大，合成后可删 |
 
 `bash setup_env.sh` 只检查并报告缺什么，`--install` 才会装。全程不需要管理员权限。
+动效库、编排器与全部渲染档位都只用上面已声明的库，**没有引入任何新的运行时依赖**。
 
 ---
 
@@ -182,6 +190,8 @@ my-video/
 ├── project.json      # slug、fps、尺寸、音色、语速、场景顺序、章节
 ├── narration.json    # [{ id, text }] —— 用 "|" 切字幕块
 ├── theme.css         # 所有颜色，以 CSS 变量形式
+├── style-plan.json   # 每场的主/次风格、角色、转场、动效强度（编排器产出）
+├── consent.json      # 六个确认点（含渲染通道）由用户拍板才放行
 ├── frames/           # 一个场景一个 HTML；<id>.beats.js 自动生成，绝不手改
 ├── audio/  render/  research/  script/
 └── out/              # MP4、封面、SRT/VTT、QC 报告
@@ -200,7 +210,8 @@ my-video/
 单个场景可以独立重渲，一整类时序 bug 从根本上无法发生。
 
 代价是**每个动画都必须可 seek**：墙钟动画（`setInterval`、`requestAnimationFrame` 计数、
-CSS `transition` 入场）不可能工作，会被 `lint_frames.py` 直接拒绝。
+CSS `transition` 入场）不可能工作，会被 `lint_frames.py` 直接拒绝。这也正是动效库被设计成
+「`t` → 一组数字」的纯函数的原因：它天生可 seek。
 
 ---
 
@@ -214,7 +225,13 @@ CSS `transition` 入场）不可能工作，会被 `lint_frames.py` 直接拒绝
 | **密钥不进 agent、不进仓库** | 火山 API Key 只存 `tts.env`（已 gitignore），**只有接口包读它** —— agent 只调 `tts_volcano.py`，拿不到也不需读密钥。异常信息脱敏；`check_integrity.py` 有专门的密钥防线检查；打包排除密钥文件。 |
 | **两级时钟** | 帧长用 MP3 **容器时长**（保音画同步）；末块字幕按**语音真实结束**收尾。 |
 | **23 种画面风格** | 8 个类别，每种都记录了画布、字阶、时间轴与配色纪律。不用对着空白页从零设计。 |
-| **封面多画幅** | 每条成片附 16:9 与**独立重排**的 3:4 封面（不是裁切 —— 裁切会丢掉 57.8% 的画面宽度）；竖版投放再加 9:16。`check_cover.mjs` 量终态几何把关。 |
+| **动效库（40+ 动作词汇）** | `assets/motion.js` 把「镜头语言」变成**时间的纯函数**：入场 / 承接 / 接触 / 运镜 / 环境五组。无状态、可组合、可逐帧 seek；随机数走 `seededRng`，渲染路径上不出现 `Math.random()`。 |
+| **主题驱动模板编排** | `style_director.py` 读解说词推断每场角色（开场/陈述/数据/原理/例证/收束），挑主风格 + 搭次风格 + 决定开场变体与转场。**不再是「一片一模板」**，产物里每场都有 `why` 说明。 |
+| **多画幅封面** | 每条成片附 16:9 与**独立重排**的 3:4 封面（不是裁切 —— 裁切会丢掉 57.8% 的画面宽度）；竖版投放再加 9:16。`check_cover.mjs` 量终态几何把关。 |
+| **画质 × 帧率档位** | `--profile draft\|balanced\|final\|master\|legacy`，或 `--quality 1080p\|2k\|4k` × `--fps 30\|60` 自由组合。画质只改 `deviceScaleFactor`，**布局逐像素不变**。`legacy` 逐位复现 v1.4 旧成片。 |
+| **快门运动模糊** | `--shutter 180` 在**线性光下做多样本积分**（不是 blur 滤镜）；静帧只截两张就跳过。三级闸门（`--shutter-only` / `--motion-hold`）避免把成本花在静态帧上。 |
+| **多进程并行 + 断点续渲** | `--workers N` 起 N 个独立浏览器进程（截图是 CPU 活，能拉满多核）；`--resume` 跳过已积分的帧；`--recycle N` 长片定期重启浏览器防 OOM。 |
+| **渲染通道由用户拍板** | 渲染前**必须**先问你选哪条中间帧通道（`png-fast`（★默认推荐）/ `jpeg q95` / `png` / `jpeg q82`），落进 `consent.json`，由 `gate_check.py --phase render` 挡在渲染之前。 |
 | **渲染前体检 + QC** | `lint_frames.py` 在渲染前报出契约违规；`qc_check.py` 查响度、时长漂移、抽帧速览。 |
 | **结构性离线** | GSAP 内置；浏览器自动探测；ffmpeg 缺失时回退到 `imageio-ffmpeg` 静态二进制；网络字体被契约禁止。 |
 
@@ -230,10 +247,14 @@ flowchart LR
     S --> D["tts_build.py<br/><i>edge-tts / 火山引擎 → MP3 + 词边界</i>"]
     D --> E["timeline_build.py<br/><i>全局轴 + 拼接音轨</i>"]
     E --> F["subs.py<br/><i>subs.json · srt/vtt · beats.js</i>"]
-    F --> G["frames/*.html<br/><i>一句一场景，风格取自风格库</i>"]
+    F --> SD["style_director.py<br/><i>读解说词挑风格 → style-plan.json</i>"]
+    SD --> G["frames/*.html<br/><i>一句一场景 · 动效库 HXM</i>"]
     G --> H{"lint_frames.py<br/>八条契约"}
     H -->|不过| G
-    H -->|通过| I["render_video.mjs<br/><i>逐帧 seek → PNG</i>"]
+    H -->|通过| GC{"gate_check.py<br/>通道已由用户拍板？"}
+    GC -->|未定| Q["问用户选通道"]
+    Q --> GC
+    GC -->|已定| I["render_video.mjs<br/><i>逐帧 seek → png-fast / jpeg</i>"]
     I --> J["ffmpeg<br/><i>H.264 + AAC 合成</i>"]
     J --> K[("out/slug.mp4")]
     I --> L["qc_check.py<br/><i>响度 · 漂移 · 抽帧速览</i>"]
@@ -242,9 +263,79 @@ flowchart LR
 
     style K fill:#1f6feb,color:#fff
     style H fill:#8957e5,color:#fff
+    style GC fill:#8957e5,color:#fff
+    style SD fill:#bf8700,color:#fff
     style M fill:#238636,color:#fff
     style N fill:#238636,color:#fff
 ```
+
+---
+
+## 渲染：档位、提速与通道
+
+「怎么渲」拆成两个正交的旋钮：**档位**（画质 × 帧率 × 快门 × 并行）与**中间帧通道**
+（中间帧存成什么格式）。两者与最终编码质量（`--crf` / `--preset`）**解耦**。
+
+### 档位
+
+`--profile` 给的是成套预设；任何显式开关（`--quality / --fps / --shutter / --workers / --crf`）
+都会**覆盖**档位里的对应项。查看全部档位：
+
+```bash
+node <skill>/scripts/render_video.mjs . --list-profiles
+```
+
+| 档位 | 画质 | 帧率 | 快门 | 中间帧 | 用途 |
+|---|---|---|---|---|---|
+| `legacy` | 1080p | 项目 fps | 关 | 精细 PNG | **逐位复现 v1.4.x 旧成片**（向后兼容的硬证据） |
+| `draft` | 1080p | 30 | 关 | `png-fast` | 打样 / 迭代，最快 |
+| `balanced` | 1080p | 30 | 180° | `png-fast` | **默认推荐**（质量/速度平衡） |
+| `final` | 4K | 60 | 180° | `png-fast` | 终稿（耗时约 1080p30 的 8–12×） |
+| `master` | 4K | 60 | 180° | 精细 PNG | 极限画质（很慢） |
+
+画质只改 `deviceScaleFactor`（1× / 1.333× / 2×），**不改任何布局** —— 同一份 HTML 只是采样更密，
+构图逐像素不变。
+
+### 提速：并行比分辨率更划算
+
+本机对比（16 逻辑核 / Windows / Chrome / 纯 CSS 图形帧，`scripts/bench_render.py` 同跑两场 × 1.0s）：
+
+| 档位 | 输出 | fps | 帧/秒 | 相对 `legacy` |
+|---|---|---|---|---|
+| `legacy` | 1920×1080 | 30 | 2.8 | ×1.00 |
+| `draft` | 1920×1080 | 30 | 9.7 | **×3.47** |
+| `balanced` | 1920×1080 | 30 | 3.6 | ×1.29 |
+| `4k30` | 3840×2160 | 30 | 3.5 | ×1.26 |
+| `4k60` | 3840×2160 | 60 | 4.7 | ×1.69 |
+
+- **真正拖慢 `legacy` 的是「单浏览器串行」，不是分辨率** —— `4k30`（4× 像素）的截图吞吐几乎追平
+  1080p 的 `balanced`。所以 `--workers N` 才是最大的提速杠杆，`--concurrency` 完全无效
+  （中间帧编码在浏览器进程内串行）。
+- 优化前后：`balanced` 总耗时 **70.4 s → 33.0 s**（其中积分 + 清理 **53.6 s → 8.5 s**）。
+- 快门是**最贵**的一项：同一条 1080p30 片子，关快门 **18.4 帧/秒**（8525 帧约 9 分 7 秒），
+  开默认快门（180° / 8 样本）会掉到 12–110 帧/分。**只在需要的场景开** —— 用
+  `--shutter-only <id,id>` 给白名单，帧里导出 `__motion` 时再靠 `--motion-hold` 自动摘掉静态帧。
+
+### 中间帧通道（渲染前必问，★默认 `png-fast`）
+
+| 通道 | 相对速度（纯图形帧 / 满幅照片帧） | 画质 | 体积（1080p 纯图形帧） | 定位 |
+|---|---|---|---|---|
+| **`--png-fast`** ★**默认** | **×1.02 / ×4.4** | **逐像素无损** | **0.10 MB/帧** | 纯 CSS/MG 图形帧上与 JPEG q95 同速、体积更小 → 默认用它 |
+| `--jpeg --jpeg-quality 95` | ×1.00 / **×13** | PSNR 41.65 dB（低于成片自身失真） | 0.12 MB/帧 | **含满幅照片 / 重合成帧、或 4K 终稿**时的首选 |
+| `--png` | ×1.16 / ×1.0 | 逐像素无损 | 0.08 MB/帧 | 只有 `legacy` 复现 / `master` 极限档用 |
+| `--jpeg --jpeg-quality 82` | 最快 | 略低 | ~0.08 MB/帧 | 只做打样预览 |
+
+> **口径陷阱：「×13 / ×4.4」是满幅照片帧的倍率，不要套到纯图形帧上。** 本技能绝大多数片子是
+> 大面积平色 + 锐利文字的**纯 CSS/MG 图形帧**，PNG 的 deflate 对这类帧极其高效 —— 实测
+> **JPEG q95 与 PNG-fast 同速**（27.14 vs 26.65 帧/秒，×1.02），而且 PNG-fast **体积更小、还无损**。
+> 所以默认推荐是 `--png-fast`；`--jpeg q95` 只在**含照片 / 4K 终稿**时才是首选
+> （照片帧上精细 PNG 是 582ms/帧的黑洞）。
+>
+> 端到端代价：一条 5982 帧片子，JPEG q95 = 460.7 s，换 PNG-fast 预计 468–493 s（**+2%～+5%**）。
+
+通道由**你**拍板，不靠 agent 默认：选定值写进 `consent.json` 的 `render_channel`，
+`gate_check.py --phase render` 在未拍板时**退出码 1**，挡住渲染。完整档位表、基准读法与
+快门磁盘护栏见 [`references/render-profiles.md`](references/render-profiles.md)。
 
 ---
 
@@ -283,7 +374,50 @@ tl.fromTo('.verdict', { scale: 0.8 },          { scale: 1, duration: 0.6 },     
 - **`gsap`（11 个）** —— 多 composition + CDN 加载。**不要搬代码。** 只取它的视觉 DNA，用
   CSS keyframes 重新表达。
 
-一个项目建议轮换 2–4 种风格。8 个场景共用同一张脸会显得单调。
+一个项目建议轮换 2–4 种风格。8 个场景共用同一张脸会显得单调 —— 编排器会自动把这件事做掉（见下）。
+
+---
+
+## 动效库与模板编排
+
+### 动效库 —— 把镜头语言变成时间的纯函数
+
+`assets/motion.js`（浏览器里挂到 `window.HXM`）把 23 个模板里反复出现的动作抽象成
+**40+ 动作词汇**，分 5 组：
+
+| 组 | 动作（节选） |
+|---|---|
+| `enter` 到场 | `riseWord` `dropLetters` `springIn` `blurAway` `riseFromMask` `typeChars` `checkOff` `flyPlane` |
+| `carry` 承接 | `morphBox` `irisOpen` `diveInto` `arcHop` `gatherTo` `railShift` `sealDisc` `burstWord` |
+| `contact` 接触 | `landHit` `splitOnHit` `tapPress` `pointer` `stretch2` `sim.*`（磁吸 / 跟随 / 软体 / 绳索） |
+| `camera` 运镜 | `camTrack` `layerMatrix` `depthBlur` `whipPan` `camShake` `slowPush` `gridDots` + 坐标互转 |
+| `ambience` 环境 | `swiftSpring` `glowField` `floodRings` `noiseField`（5 套色带） `beltLoop` |
+
+每个动作都是 **`t`（绝对秒）→ 一组数字**：无状态、不碰 DOM、不碰 canvas，所以能被**逐帧 seek**
+—— 同一个 `t` 永远给出同一组数。所有随机数走 `seededRng`，渲染路径上**不出现 `Math.random()`**，
+逐帧渲染与实时预览结果一致。`tests/test_motion.mjs` 有 148 条断言。
+
+写画面时不再是从零调缓动曲线，而是从这套词汇里挑选、组合、调参 —— 一个场景通常由
+「入场 + 承接 + 一点运镜 + 环境光」几层叠出来。
+
+### 模板编排 —— 让主题支配模板，而不是反过来
+
+`scripts/style_director.py` **读解说词本身**，先推断每场在片子里扮演什么角色
+（开场 / 陈述 / 数据 / 原理 / 例证 / 反差 / 收束 / 落版），再按角色 × 子类别 × 时长 × 内容词 ×
+受众 × 节奏打分挑**主风格**，按能量预算给部分场搭**次风格**做局部元素替换，并决定**开场变体**
+（由主题哈希轮换）与**场间转场**（由相邻两场能量差决定）：
+
+```bash
+# 先 dry-run 看结果，满意再去掉 --dry-run 落盘
+python scripts/style_director.py --project . --dry-run
+python scripts/style_director.py --project . --mood calm --pace 慢 --audience 大众 --pin hook=bold-signal
+```
+
+产物 `style-plan.json` 每场带 `role / primary / motion_intensity / transition_out / why` ——
+「这场为什么被挑中」是可查的。多样性约束（风格数上限 / 连续同风格上限 / 开场 ≠ 第二场）与
+`--pin` 硬约束，保证它不会又退化成「一片一模板」。`--seed` 让同一题材每次换一批画面，
+`--band 0` 则完全确定（供回归）。完整规则见 [`references/style-director.md`](references/style-director.md)、
+动效词汇见 [`references/motion-library.md`](references/motion-library.md)。
 
 ---
 
@@ -325,6 +459,7 @@ node scripts/check_cover.mjs .          # 边距 / 钩子字号 / 行宽 / 孤�
 | 视频变成 1280×720 | `viewport` 传给了 `browser.launch()` —— 它是 *context* 级选项 | 传给 `newPage()` |
 | 封面出成 1 倍图 | 同上，`deviceScaleFactor` 的孪生坑 | 传 `newPage()` + `screenshot({ scale: 'device' })` |
 | 数字能渲染但永远不动 | seek 抑制了 `onUpdate` 回调 | 渲染器已修（`pause(t, false)`）；帧里改用 transform 数字卷轴 |
+| `--jpeg` 通道下 ffmpeg 首帧即崩（`unsupported coding type`） | 「hold 帧」被写成「后缀 `.jpg`、内容 PNG」的脏帧（PIL 按内容嗅探能读，ffmpeg 按后缀解码当场崩） | 升级到 v2.0.4 或更高（该版本已修） |
 | Windows 上 `No such file or directory` | 非 ASCII 路径 —— Windows 的 ffmpeg 把 UTF-8 当 ANSI 读 | 路径保持 ASCII |
 | 字幕开始飘 / 位置对不上 | TTS 没返回字级时间戳，`subs.py` 退回**按字数插值**（只有一行 stderr 警告） | 看 `tts_build` 有没有打 `⚠ 未返回字级时间戳`；换个受支持的音色（中英文 2.0） |
 | 火山报 `resource ID is mismatched with speaker related resource` | `speaker` 收到了中文显示名而不是音色 ID；或复刻音色配了预置资源 ID | 音色用内置名/ID（接口包会解析）；复刻音色配 `VOLC_RESOURCE_ID=seed-icl-2.0` |
@@ -332,7 +467,7 @@ node scripts/check_cover.mjs .          # 边距 / 钩子字号 / 行宽 / 孤�
 | 火山报 `网络不可达` | 本包默认**绕过系统代理直连**（境内端点） | 确实需要代理时设 `VOLC_PROXY=http://127.0.0.1:<port>` |
 | 重跑后字幕整体晚一帧 | 命中缓存时丢掉了首裁量（历史 bug，已修） | 升级到 v1.3.0+；缓存格式已带 `lead_cut_sec` |
 
-**`references/lessons.md` 是这个仓库里最值钱的文件。** 56 条编号记录，每一条都是一个
+**`references/lessons.md` 是这个仓库里最值钱的文件。** 130 条编号记录，每一条都是一个
 「成片看着挺正常、其实是错的」的 bug —— 包括它一开始是怎么被误判的。从零开始 debug 之前，
 先读它。
 
@@ -365,7 +500,9 @@ node scripts/check_cover.mjs .          # 边距 / 钩子字号 / 行宽 / 孤�
   转写自它的模板设计规范。其中 7 种又可追溯到 MIT 许可的设计作品。
   *差异*：它靠实时录制；本项目靠 seek 逐帧渲染，帧可复现。
 
-**本项目自己的部分**：确定性 seek 渲染器、`B()` 节拍锚定、封面多画幅（含几何实测器），以及
+**本项目自己的部分**：确定性 seek 渲染器、`B()` 节拍锚定、**动效库**（`assets/motion.js`）、
+**模板编排器**（`style_director.py`）、**渲染档位与通道体系**（画质/帧率/快门/并行，
+`references/render-profiles.md`）、封面多画幅（含几何实测器），以及
 `lint_frames.py` / `qc_check.py` 的判据。完整的署名与逐风格对应关系见
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
 
