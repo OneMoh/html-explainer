@@ -334,7 +334,14 @@ const frameSeek = async (o) => {
 //   --jpeg：q82 41ms（13×）；q95 52ms，PSNR 41.7dB（低于 x264 crf18 自身失真，成片看不出）
 async function captureFrame({ page, cdp, outPath, args, W, H }) {
   if (cdp) {
+    // ★ 通道必须一路贯穿到 CDP：写死 format:'png' 会让 --jpeg 通道静默出成 PNG 内容
+    //   装进 .jpg 文件名，ffmpeg 的 mjpeg 解码器当场报 "unsupported coding type" 并中断整片。
     const opts = { format: 'png', optimizeForSpeed: true, captureBeyondViewport: false };
+    if (args.jpeg) {
+      opts.format = 'jpeg';
+      opts.quality = args.jpegQuality || 82;
+      delete opts.optimizeForSpeed;   // optimizeForSpeed 只对 png 有效
+    }
     const sc = args.scale || 1;
     if (sc !== 1) opts.clip = { x: 0, y: 0, width: W, height: H, scale: sc };
     const r = await cdp.send('Page.captureScreenshot', opts);
@@ -347,6 +354,10 @@ async function captureFrame({ page, cdp, outPath, args, W, H }) {
   });
 }
 
+// ★ captureBytes 刻意**恒为 PNG**：它有两个用途 —— ① 快门样本写进 shutter/ 目录
+//   （blur_integrate.py 只认 .png，且线性光积分要无损）；② `first.equals(last)` 的
+//   逐字节比对（无损才能判「真的没动」）。**不要**给它加 --jpeg 分支。
+//   需要「按通道出成品帧」的地方一律走 captureFrame。
 async function captureBytes({ page, cdp }) {
   if (cdp) {
     const r = await cdp.send('Page.captureScreenshot',
@@ -670,8 +681,12 @@ async function main() {
     const last = await (async () => { await ctx.page.evaluate(frameSeek, { t: times[S - 1], globalT: sc.globalStart + times[S - 1], total: renderSec }); return captureBytes({ page: ctx.page, cdp: ctx.cdp, args }); })();
     captures += 2;
     if (S > 1 && first.equals(last)) {
-      // hold：快门开合期间什么都没动 —— 直接落盘，剩下的样本全省
-      fs.writeFileSync(finalPath, first);
+      // hold：快门开合期间什么都没动 —— 剩下的样本全省，只截一张成品。
+      // ★ 必须走 captureFrame（它按 --jpeg 通道写真实 JPEG）。
+      //   直接 `fs.writeFileSync(finalPath, first)` 落盘的是 captureBytes 的 **PNG 字节**，
+      //   会得到「.jpg 文件名装着 PNG 内容」的脏帧 —— ffmpeg 的 mjpeg 解码器读第一帧就报
+      //   "unsupported coding type" 并以 -xerror 中断整片（实测 1254 个 hold 帧全中）。
+      await captureFrame({ page: ctx.page, cdp: ctx.cdp, outPath: finalPath, args, W: pjW, H: pjH });
       captures -= 1;   // 只算一张有效
       stillFrames++;
       return;

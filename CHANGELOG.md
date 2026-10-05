@@ -11,6 +11,32 @@
 
 ---
 
+## [2.0.4] — 2026-10-05
+
+> 一个**真实会毁掉整条成片**的渲染器 bug：`--jpeg` 通道下，「hold 帧」被写成了
+> 「后缀 `.jpg`、内容 PNG」的脏帧，ffmpeg 按后缀选 mjpeg 解复用器、读第一帧即崩。
+> 由一条 5982 帧的横屏讲解片实测暴露（详见 `references/lessons.md` #126 / #127）。
+
+### 修复
+- **★ `render_video.mjs`：`--jpeg` 通道没贯穿到 CDP。** `captureFrame()` 的 CDP 分支写死
+  `format:'png'`，`captureBytes()` 则**恒为 PNG**（这是刻意的：快门样本要无损 PNG，
+  `first.equals(last)` 也要无损字节比对）。但 hold 帧落盘走的是
+  `fs.writeFileSync(finalPath, first)` —— 把 captureBytes 的 PNG 字节写进了 `.jpg` 名字。
+  **PIL 按内容嗅探能读，ffmpeg 按后缀解码则当场报 `unsupported coding type`。**
+  修法：① `captureFrame` 的 CDP 分支补 `format:'jpeg'` + `quality`；
+  ② hold 落盘改走 `captureFrame({ …, outPath: finalPath, args, W: pjW, H: pjH })`；
+  ③ 给 `captureBytes` 加注释锁死「恒为 PNG」，防止后人加 `--jpeg` 分支破坏快门积分。
+  实测该轮 **1254 个 hold 帧全中**，与渲染日志的 `still_frames` 计数**完全相等**。
+
+### 记录
+- `references/lessons.md` #126：脏帧的识别（`head -c4` 看魔数 `ff d8 ff` vs `89 50 4e 47`）
+  与补救（PIL 就地重存为真 JPEG 后 `--mux-only` 补编码，无需重渲）。
+- `references/lessons.md` #127：收尾积分/清理阶段非零退出会让**编码被整体跳过**，
+  但帧其实全好 —— 用 `blur_integrate.py --report` + 帧序列（**1 基**编号）核对后，
+  直接 `--mux-only` 补编码。
+
+---
+
 ## [2.0.3] — 2026-10-05
 
 > 一个能力补齐 + 一处认知纠正。起于用户的一句提问：「快门能不能只在用到动效的地方开，
