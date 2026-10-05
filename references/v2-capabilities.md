@@ -19,7 +19,9 @@
 | 8 | **断点续渲 + 定期重启浏览器** | `scripts/render_video.mjs` | `--resume` / `--recycle N` | `references/render-profiles.md` |
 | 9 | **PNG 提速 / JPEG 中间帧** | `scripts/render_video.mjs` | `--png-fast` / `--jpeg --jpeg-quality N` | `references/render-profiles.md` |
 | 10 | **渲染基准工装** | `scripts/bench_render.py` | `--configs legacy,draft,balanced,shutter,4k30,4k60,master` | `references/render-profiles.md` |
-| 11 | **★ 渲染通道确认**（渲染前必问用户：`png` / `png-fast` / `jpeg q95` / `jpeg q82`） | `consent.json` 的 `render_channel` + `scripts/gate_check.py` | `gate_check.py --phase render` | `SKILL.md` 确认点 5 · `references/render-profiles.md` §0 |
+| 11 | **★ 渲染通道确认**（渲染前必问用户：`jpeg q95`（★推荐）/ `png-fast` / `png` / `jpeg q82`） | `consent.json` 的 `render_channel` + `scripts/gate_check.py` | `gate_check.py --phase render` | `SKILL.md` 确认点 5 · `references/render-profiles.md` §0 |
+| 12 | **★ 快门样本磁盘护栏**（`--shutter-flush <GB>`：攒够阈值就全体停手积分+清理，把峰值从"全片之和"压到"阈值×1"） | `scripts/render_video.mjs` + `scripts/blur_integrate.py` | `--shutter-flush N`（0=关；默认取可用磁盘 25%，夹 1–8 GB） | `references/render-profiles.md` §6 |
+| 13 | **★ 快门只开在该开的地方**（场景级白名单 + 帧级位移闸门，不把 8× 成本花在静态帧上） | `scripts/render_video.mjs` | `--shutter-only <id,id>` / `--motion-hold <px>` | `SKILL.md`「只在需要的那几场开」· `references/render-profiles.md` §3 |
 
 ---
 
@@ -57,7 +59,11 @@
 ### 2.4 运动模糊与提速（能力 6–8）
 
 - [ ] `--shutter 0` 时无运动模糊（与旧行为一致）
-- [ ] `--shutter 180` 时动帧做多样本积分；**hold 静帧只截 2 张并跳过**
+- [ ] `--shutter 180` 时动帧做多样本积分；`hold` 帧直接沿用单张，不落样本、不进积分
+- [ ] **三级闸门都对**：① `--shutter-only a,b` 时非名单场景的帧**不产生** `render/shutter/` 目录；
+      ② 帧导出 `__motion` 时，位移 < `--motion-hold` 的帧走单张（日志「位移闸门」计数 > 0）；
+      ③ 无 `__motion` 时逐字节兜底（日志「快门覆盖面」显示 100%，并以此为 ② 未生效的告警）
+- [ ] `--shutter-only` 里写错 id **必须报错退出**（否则等于静默全片不开快门）
 - [ ] 页面定义 `window.__motion(t0,t1)` 时样本数自适应（`--motion-gap`）
 - [ ] `blur_integrate.py` 在**线性光**下平均（非 sRGB 直接平均）
 - [ ] `--workers N` 真的起 N 个独立浏览器进程（日志打印"N 个**独立浏览器**"）
@@ -71,8 +77,8 @@
 
 ### 2.6 渲染通道确认（能力 11）
 
-- [ ] 渲染前**先问用户**选通道（`png` / `png-fast` / `jpeg q95` / `jpeg q82`），
-      并给出**描述 + 逐帧耗时 + 相对速度 + 推荐口径**
+- [ ] 渲染前**先问用户**选通道（`jpeg q95`（★推荐）/ `png-fast` / `png` / `jpeg q82`），
+      并给出**描述 + 逐帧耗时 + 相对速度 + 相对体积 + 推荐口径**
 - [ ] 选择落到 `consent.json` 的 `render_channel`，且 `decided_by == "user"`
 - [ ] `python scripts/gate_check.py --project . --phase render` 在未拍板时**退出码 1**，拍板后通过
 - [ ] 打样阶段选定后可沿用同一轮；**换通道 / 换档位要重新确认**
@@ -126,7 +132,10 @@ SKILL=<skill 根目录>
 # 5) ★ 渲染：可选档位 + 通道。先 draft 看节奏，定稿用 balanced / final
 node $SKILL/scripts/render_video.mjs .scratch/demo --profile draft --preview 10
 node $SKILL/scripts/render_video.mjs .scratch/demo --profile balanced \
-     --png-fast --audio audio/narration-full.mp3
+     --jpeg --jpeg-quality 95 --audio audio/narration-full.mp3
+# 只有几场要拖影？用白名单，其余场零成本；帧里导出 __motion 时再靠 --motion-hold 自动摘静态帧
+node $SKILL/scripts/render_video.mjs .scratch/demo --shutter-only hook,cta --motion-hold 1 \
+     --jpeg --jpeg-quality 95 --audio audio/narration-full.mp3
 
 # 6) 出 4K60 终稿（硬件要求见 references/render-profiles.md）
 node $SKILL/scripts/render_video.mjs .scratch/demo --profile final \

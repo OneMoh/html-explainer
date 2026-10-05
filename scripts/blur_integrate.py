@@ -79,8 +79,13 @@ def cut_side(small):
     return list(range(j + 1, n)) if j < n // 2 else list(range(j + 1))
 
 
-def _save_png(img, path, tries=4):
-    """写 PNG，遇到 PermissionError 重试。
+def _save(img, path, ext='png', quality=95, tries=4):
+    """写中间帧成品。ext=='jpg' 走 JPEG，否则走 PNG。两者都带重试。
+
+    ★ 为什么必须按 ext 分叉（不是「顺手加个开关」）：`--jpeg` 通道下 Node 侧把静帧直接写成
+      `.jpg`，如果积分器仍写 `.png`，`render/frames/` 里就会同时存在两种扩展名 ——
+      ffmpeg 的输入是 `f_%06d.jpg`，会**静默漏掉全部动帧**（片子里所有带运动模糊的帧消失），
+      而完整性闸门只按一种扩展名点号，两边永远对不上。通道必须一路贯穿到积分器。
 
     ★ 为什么要重试：在启用实时文件扫描的环境里，刚写出的文件会被扫描线程短暂占用，
       再次覆盖就可能拿到 Permission denied（实测 24 帧里偶发 3 帧）。
@@ -88,7 +93,10 @@ def _save_png(img, path, tries=4):
     """
     for i in range(tries):
         try:
-            img.save(path, compress_level=1)
+            if ext == 'jpg':
+                img.save(path, 'JPEG', quality=quality, subsampling=0)
+            else:
+                img.save(path, compress_level=1)
             return
         except (PermissionError, OSError):
             if i == tries - 1:
@@ -96,8 +104,8 @@ def _save_png(img, path, tries=4):
             time.sleep(0.2 * (i + 1))
 
 
-def integrate_dir(d, out_png, box=8):
-    """积分一个 shutter 目录 → 一张 PNG。返回 (kept, total, cut)
+def integrate_dir(d, out, ext='png', quality=95, box=8):
+    """积分一个 shutter 目录 → 一张成品帧（按 ext 写 png 或 jpg）。返回 (kept, total, cut)
 
     ★ 每张样本只解码一次：小图（判动/判切）由已解码的 RGB 数组就地降采样得到。
     """
@@ -105,12 +113,17 @@ def integrate_dir(d, out_png, box=8):
     if not names:
         return 0, 0, False
     if len(names) == 1:
-        # 只有一张样本：直接拷贝原始字节（逐位无损，不必过一遍编解码）
-        shutil.copyfile(os.path.join(d, names[0]), out_png)
+        # 只有一张样本：目标也是 PNG 时直接拷贝原始字节（逐位无损，不必过一遍编解码）；
+        # 目标是 JPEG 就必须真转一次，否则会出现「.jpg 文件名装着 PNG 内容」的脏帧。
+        src = os.path.join(d, names[0])
+        if ext == 'png':
+            shutil.copyfile(src, out)
+        else:
+            _save(Image.open(src).convert('RGB'), out, ext, quality)
         return 1, 1, False
     arrs = [np.asarray(Image.open(os.path.join(d, n)).convert('RGB')) for n in names]
     if len(arrs) == 1:
-        _save_png(Image.fromarray(arrs[0]), out_png)
+        _save(Image.fromarray(arrs[0]), out, ext, quality)
         return 1, 1, False
     keep = cut_side([_probe_grey(a, box) for a in arrs]) if len(arrs) >= 4 else list(range(len(arrs)))
     # ★ uint16 查表 + uint32 累加：与 float32 累加数值等价（实测 8bit 往返差 0），
@@ -121,14 +134,14 @@ def integrate_dir(d, out_png, box=8):
         acc = u.astype(np.uint32) if acc is None else acc + u
     n = len(keep)
     idx = np.clip((acc + n // 2) // n, 0, 65535).astype(np.uint16)
-    _save_png(Image.fromarray(LIN_TO_SRGB[idx]), out_png)
+    _save(Image.fromarray(LIN_TO_SRGB[idx]), out, ext, quality)
     return n, len(arrs), n < len(arrs)
 
 
 def _work(job):
-    d, out = job
+    d, out, ext, quality = job
     try:
-        kept, tot, cut = integrate_dir(d, out)
+        kept, tot, cut = integrate_dir(d, out, ext, quality)
         # ★ 这里**不删样本目录**：删除文件的开销在不少环境（沙箱 / 实时扫描 / 网络盘）里
         #   远高于积分本身 —— 实测 24 帧样本的目录删除要 120s+，而积分只要 1.6s。
         #   清理统一挪到积分全部完成后（main 里并行做），且可 --keep-shutter 跳过。
@@ -172,7 +185,7 @@ def _clean_via_temp(shutter_root):
     return time.time() - t
 
 
-def pending(project):
+def pending(project, ext='png', quality=95):
     """列出还没积分的帧（shutter 目录还在、且成品帧还没生成）"""
     sd = os.path.join(project, 'render', 'shutter')
     fd = os.path.join(project, 'render', 'frames')
@@ -183,7 +196,10 @@ def pending(project):
         d = os.path.join(sd, name)
         if not os.path.isdir(d):
             continue
-        out = os.path.join(fd, name + '.png')
+        # ★ 成品帧的扩展名必须与渲染通道一致（Node 侧 --jpeg → 'jpg'）。写死 .png 的后果：
+        #   `render/frames/` 里动帧是 .png、静帧是 .jpg，而 ffmpeg 的输入是 `f_%06d.<ext>`，
+        #   会**静默漏掉全部动帧**；完整性闸门只按一种扩展名点号，两边永远对不上。
+        out = os.path.join(fd, name + '.' + ext)
         # 成品已存在且不比方样本旧 → 是上一轮留下的样本，跳过（--resume 语义）
         if os.path.exists(out):
             try:
@@ -191,7 +207,7 @@ def pending(project):
                     continue
             except OSError:
                 pass
-        jobs.append((d, out))
+        jobs.append((d, out, ext, quality))
     return jobs
 
 
@@ -201,15 +217,19 @@ def main():
     ap.add_argument('--workers', type=int, default=max(1, min(16, (os.cpu_count() or 4) - 2)))
     ap.add_argument('--keep-shutter', action='store_true',
                     help='积分后保留 shutter 样本目录（默认清理；样本可用于复查）')
+    ap.add_argument('--ext', choices=['png', 'jpg'], default='png',
+                    help="成品帧扩展名 —— 必须与渲染通道一致（Node 侧 --jpeg 就传 jpg）")
+    ap.add_argument('--jpeg-quality', type=int, default=95,
+                    help='ext=jpg 时的 JPEG 质量（与 Node 侧 --jpeg-quality 保持一致）')
     ap.add_argument('--json', action='store_true')
     ap.add_argument('--report', action='store_true')
     a = ap.parse_args()
     project = os.path.abspath(a.project)
     os.makedirs(os.path.join(project, 'render', 'frames'), exist_ok=True)
 
-    jobs = pending(project)
+    jobs = pending(project, a.ext, a.jpeg_quality)
     if a.report:
-        n_samp = sum(len([f for f in os.listdir(d) if f.endswith('.png')]) for d, _ in jobs)
+        n_samp = sum(len([f for f in os.listdir(d) if f.endswith('.png')]) for d, *_ in jobs)
         print(f'待积分 {len(jobs)} 帧 · 共 {n_samp} 张快门样本'
               f'（平均 {n_samp / len(jobs):.1f} 张/帧）' if jobs else '没有待积分的帧')
         return 0

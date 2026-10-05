@@ -1,7 +1,7 @@
 ---
 name: html-explainer
-version: 2.0.1
-description: 把任意主题做成「讲解/科普视频」并渲染成 MP4：调研→审查→解说词→字幕→配音（edge-tts，或火山引擎语音合成 2.0）→**主题驱动风格编排**→并行构建 HTML 场景→确定性逐帧渲染→成片后出多画幅封面。**画面语言内置 23 个模板风格 / 8 个类别**（大胆信号卡、奢华极简、NYT 数据图表、瑞士网格、故障艺术、胶片漏光、流体 Hero、Logo 收尾、东方柔和有机、VFX 文字光标…共 23 种风格，含每种的画布/配色/字体/时间轴规范，见 references/style-catalog.md）。**v2.0 新增**：①**动效库**（`assets/motion.js`，5 组共 40+ 动作词汇：弹簧/进出场/承接/接触/运镜/环境光）；②**4K60 + 快门运动模糊**（`--quality / --fps / --profile`，线性光积分，静帧自动跳过）；③**渲染提速**（多浏览器进程级并行 / `--png-fast` / `--jpeg` / `--resume` 断点续渲），且**渲染前必须先问用户选哪条中间帧通道**（`png` / `png-fast` / `jpeg q95` / `jpeg q82`，附速度对比与推荐；未拍板由 `gate_check.py --phase render` 挡下）；④**主题驱动模板编排**（`scripts/style_director.py`，按内容类型/情绪/节奏/受众挑风格、混用与局部替换、动态开头与转场，不再一片一模板）。流程规范与音画同步体系承自 anything2explainer（词边界字幕、两级时钟、语速标定、多 agent 分工与 QC 判据），渲染层为自研 seek 式渲染器。**封面默认 16:9 + 3:4 两张**：抖音主封面 1920×1080 + 兼容主页栅格 3:4 的 1440×1080（独立重排，防切字）；**竖版投放再加 9:16 的 1080×1920**（左右并置必须改上下堆叠、上下边距让开平台 UI 层）。独立可移植：GSAP 内置、playwright-core 随包、ffmpeg 走 imageio-ffmpeg 回退、浏览器自动探测 Chrome/Edge；**不依赖 html-video / anything2explainer 任何代码或目录**。触发场景：要做科普/讲解/教学/知识/产品类视频、"讲一下 X 做成视频"、要用 html-video 那种模板化画面但更稳的音画同步、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面/9:16 封面、anything2explainer 换 HTML 渲染、或提到 html-explainer / HTML 讲解视频 / explainer video / MG 视频。
+version: 2.0.3
+description: 把任意主题做成「讲解/科普视频」并渲染成 MP4：调研→审查→解说词→字幕→配音（edge-tts，或火山引擎语音合成 2.0）→**主题驱动风格编排**→并行构建 HTML 场景→确定性逐帧渲染→成片后出多画幅封面。**画面语言内置 23 个模板风格 / 8 个类别**（大胆信号卡、奢华极简、NYT 数据图表、瑞士网格、故障艺术、胶片漏光、流体 Hero、Logo 收尾、东方柔和有机、VFX 文字光标…共 23 种风格，含每种的画布/配色/字体/时间轴规范，见 references/style-catalog.md）。**v2.0 新增**：①**动效库**（`assets/motion.js`，5 组共 40+ 动作词汇：弹簧/进出场/承接/接触/运镜/环境光）；②**4K60 + 快门运动模糊**（`--quality / --fps / --profile`，线性光积分 + 三级快门闸门 `--shutter-only` / `--motion-hold`）；③**渲染提速**（多浏览器进程级并行 / `--png-fast` / `--jpeg` / `--resume` 断点续渲），且**渲染前必须先问用户选哪条中间帧通道**（`png` / `png-fast` / `jpeg q95` / `jpeg q82`，附速度对比与推荐；未拍板由 `gate_check.py --phase render` 挡下）；④**主题驱动模板编排**（`scripts/style_director.py`，按内容类型/情绪/节奏/受众挑风格、混用与局部替换、动态开头与转场，不再一片一模板）。流程规范与音画同步体系承自 anything2explainer（词边界字幕、两级时钟、语速标定、多 agent 分工与 QC 判据），渲染层为自研 seek 式渲染器。**封面默认 16:9 + 3:4 两张**：抖音主封面 1920×1080 + 兼容主页栅格 3:4 的 1440×1080（独立重排，防切字）；**竖版投放再加 9:16 的 1080×1920**（左右并置必须改上下堆叠、上下边距让开平台 UI 层）。独立可移植：GSAP 内置、playwright-core 随包、ffmpeg 走 imageio-ffmpeg 回退、浏览器自动探测 Chrome/Edge；**不依赖 html-video / anything2explainer 任何代码或目录**。触发场景：要做科普/讲解/教学/知识/产品类视频、"讲一下 X 做成视频"、要用 html-video 那种模板化画面但更稳的音画同步、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面/9:16 封面、anything2explainer 换 HTML 渲染、或提到 html-explainer / HTML 讲解视频 / explainer video / MG 视频。
 agent_created: true
 ---
 
@@ -22,7 +22,7 @@ agent_created: true
 |---|---|---|
 | **动效库**（40+ 动作词汇） | `assets/motion.js` → `window.HXM` | `references/motion-library.md` |
 | **主题驱动模板编排**（挑风格 / 混用 / 动态开头） | `scripts/style_director.py` | `references/style-director.md` |
-| **画质帧率档位 + 快门运动模糊 + 提速** | `scripts/render_video.mjs --profile/--quality/--fps` | `references/render-profiles.md` |
+| **画质帧率档位 + 快门运动模糊 + 提速** | `scripts/render_video.mjs --profile/--quality/--fps/--shutter-only/--motion-hold` | `references/render-profiles.md` |
 | **渲染基准测试**（优化前后对比） | `scripts/bench_render.py` | `references/render-profiles.md` |
 | **宣传片范式**（去模板化：模板只吸纳配色/字体/时序三层） | 设计方法 | `references/showcase-mode.md` |
 | **库全量演示编排**（统一舞台 + 节拍网格 + 标签常驻） | 设计方法 | `references/library-showcase.md` |
@@ -109,7 +109,7 @@ PY=<venv python 绝对路径>          # 派子 agent 时必须展开成绝对�
 "$PY" <skill>/scripts/gate_check.py     --project . --phase render   # ★★ 渲染前必过：render_channel（渲染通道）未拍板 → 拒绝渲染
 "$PY" <skill>/scripts/lint_frames.py    --project .   # 静态体检：八条契约违规（渲染前一秒出结果，比渲完再发现便宜得多）
 node <skill>/scripts/check_layout.mjs   .             # ★ 几何体检：越界 / 侵入字幕带 / 元素互相遮挡（lint 看不见几何）
-node <skill>/scripts/render_video.mjs   . [--audio audio/narration-full.mp3] [--profile draft|balanced|final|master] [--quality 1080p|2k|4k] [--fps 30|60] [--shutter 180] [--preview 30] [--keep-frames] [--only <场景id>] [--mux-only] [--png-fast|--jpeg] [--workers N] [--concurrency N] [--resume]   # 渲染：out/<slug>.mp4（★ 通道/档位先按确认点 5 问过用户）
+node <skill>/scripts/render_video.mjs   . [--audio audio/narration-full.mp3] [--profile draft|balanced|final|master] [--quality 1080p|2k|4k] [--fps 30|60] [--shutter 180] [--shutter-flush 4] [--shutter-only <场景id,场景id>] [--motion-hold 1] [--preview 30] [--keep-frames] [--only <场景id>] [--mux-only] [--jpeg --jpeg-quality 95|--png-fast] [--workers N] [--concurrency N] [--resume]   # 渲染：out/<slug>.mp4（★ 通道/档位先按确认点 5 问过用户；★ 通道与档位必须一起报——`--jpeg` 与默认快门同时用，中间帧扩展名要一路贯穿到积分器；★ 快门覆盖面也要问：全片开还是 `--shutter-only` 点名几场）
 "$PY" <skill>/scripts/qc_check.py       --project .   # 体检 + 抽帧速览图
 node <skill>/scripts/cover_build.mjs    .             # 封面：out/cover_169.png + cover_34.png（竖版再加 cover_916.png）
 node <skill>/scripts/check_cover.mjs    .             # 封面终态几何实测：边距/钩子字号/行宽/孤字/文字重叠/9:16 禁两栏（FAIL 清零再交）
@@ -127,29 +127,86 @@ node <skill>/scripts/check_cover.mjs    .             # 封面终态几何实测
 不许凭「上次用的 png-fast」或「PNG 是默认」就静默开工。** 用户在打样阶段选定后，
 同一轮的重复渲染可沿用；**换通道或换档位要重新确认一次**。
 
-| 通道 | 参数 | 逐帧耗时（纯 CSS 图形 / 满幅照片） | 相对速度 | 画质 | 中间帧体积 | 适用 / 推荐 |
+| 通道 | 参数 | 逐帧编码耗时（纯 CSS 图形 / 满幅照片） | 相对速度 | 画质（客观口径） | 中间帧体积（1080p 实测） | 定位 |
 |---|---|---|---|---|---|---|
-| **PNG（默认）** | 不带开关 | 45ms / **582ms** | ×1.0（基准） | 逐像素无损 | 基准 | 只在**像素级复现旧成片**（`--profile legacy`）或用 `master` 极限画质时选 |
-| **PNG-fast** | `--png-fast` | — / 132ms | **×4.4** | **逐像素无损**（CDP `optimizeForSpeed`） | +22% | ★ **默认推荐**：无损且够快，绝大多数片子用它 |
-| **JPEG q95** | `--jpeg --jpeg-quality 95` | — / 52ms | **×13** | PSNR 41.65dB，**低于 x264 crf18 自身失真**，成片看不出 | ~1/5 | 满幅照片 / 复杂合成 / 长片省磁盘 |
-| **JPEG q82** | `--jpeg --jpeg-quality 82` | — / 41ms | **×14** | 略低，但仍高于多数成片编码失真 | ~1/5 | 打样 / 迭代预览，速度优先 |
+| **JPEG q95** ★**默认推荐** | `--jpeg --jpeg-quality 95` | — / 52ms | **×13** | PSNR **41.65 dB**，**低于 x264 crf18 成片自身失真** | **0.23 MB/帧**（8525 帧 ≈ **1.9 GB**） | 快 13×、体积 1/5，失真在成片里不可观测 → 默认就用它 |
+| **PNG-fast** | `--png-fast` | — / 132ms | ×4.4 | 逐像素无损（PSNR 99 dB、最大差 0） | ~2.0 MB/帧 | 只有「中间帧也必须逐像素无损」的合规/归档需求才值得付 3× 时间与 8× 磁盘 |
+| **PNG**（1.4.x 默认） | 不带开关 | 45ms / **582ms** | ×1.0（基准） | 逐像素无损 | 1.6 MB/帧 | 仅 `--profile legacy` 逐位复现旧成片、或 `master` 极限档 |
+| **JPEG q82** | `--jpeg --jpeg-quality 82` | — / 41ms | ×14 | 略低于 q95，仍高于多数成片编码失真 | ~0.1 MB/帧 | 只做打样/迭代预览，不用于交付 |
+
+**为什么 JPEG q95 不算「降质」**：中间帧还要再被 x264 压一次才成为成片，所以中间帧的相对失真
+只要**低于成片编码自身的失真**就完全不可观测 —— q95 的 PSNR 41.65 dB 正好低于 crf18 自身失真，
+等于**零代价**换来 13× 编码速度与 1/5 磁盘。PNG/PNG-fast 的「逐像素无损」在这一环没有可观测收益。
 
 **怎么问（照抄这句）**：
-> 渲染通道你要哪条？① PNG（无损，最慢）② **PNG-fast（无损，快 4.4×，推荐）**
-> ③ JPEG q95（快 13×、体积 1/5，肉眼无差）④ JPEG q82（最快，打样用）
+> 渲染通道你要哪条？
+> **① JPEG q95（推荐 —— 快 13×、体积 1/5；失真低于成片自身编码失真，肉眼无差）**
+> ② PNG-fast（中间帧逐像素无损，但慢 3×、占盘 8×，成片画质无可观测收益）
+> ③ PNG（最慢，只有要逐位复现 1.4.x 老成片时才选）④ JPEG q82（最快，只适合打样）
 
 **自动推荐口径**（给建议时按这个判，但仍要用户点头）：
-- 帧里有**满幅照片 / 重合成** → 一律别用默认 PNG（582ms/帧）；推荐 `--png-fast`，
-  片子超过 ~10 分钟或磁盘紧张时给 `--jpeg --jpeg-quality 95`。
-- **纯 CSS 图形帧** → 默认 PNG 与 `--png-fast` 都行（10× 差距只在照片帧上才出现）。
+- **默认（绝大多数片子，尤其纯 CSS/MG 图形帧）** → **`--jpeg --jpeg-quality 95`**。
+- 帧里有**满幅照片 / 重合成** → `--jpeg q95` 首选（PNG 在照片帧上是 582ms/帧，是最大的时间与磁盘黑洞）。
+- **中间帧必须逐像素无损**（合规 / 归档 / 要拿去二次调色）→ `--png-fast`。
 - 只是**看节奏的打样** → `--profile draft`（档位内已含 `png-fast`）+ `--preview`。
-- **4K 终稿** → 必须 `--png-fast` 或 `--jpeg q95`（精细 PNG 会把磁盘与编码时间吃干，见 §6）。
+- **4K 终稿** → 必须 `--jpeg q95` 或 `--png-fast`（精细 PNG 会把磁盘与编码时间吃干，见 §6）。
+
+> 档位表里的 `shot` 字段（`balanced`/`final` = `png-fast`）**保持原样不动** —— 那是历史默认，
+> 改了会破坏「不传新参数时行为等价于旧 1080p30 默认」的承诺。**推荐口径与档位默认值是两回事**：
+> 实操一律**显式**加 `--jpeg --jpeg-quality 95`。
 
 **关键事实：中间帧编码在浏览器进程内是串行的，`--concurrency` 对 PNG 完全无效**
 （实测并发 1/3/6 路的总吞吐 1.80 / 1.86 / 1.87 帧/秒）。想加速只有两条路：**换通道**或
 **加 `--workers`（真·多进程）**。照片类片子的历史教训见 `lessons.md` 第 69 条。
 
 选定的通道写进 `consent.json` 的 `render_channel` 字段，由 `gate_check.py` 挡在渲染之前。
+
+### 快门（运动模糊）开 / 关，到底影响什么
+
+用户几乎一定会问这句，照下表答（**不是**"开了更好看"这么含糊）：
+
+| | **开**（`balanced` 默认，180°） | **关**（`--shutter 0`；`draft` 档即无快门） |
+|---|---|---|
+| 观感 | 运动中的元素带真实拖影，**快速横移 / 推镜不闪、不跳帧**，更像摄影机拍的 | 运动元素是清晰硬边；快速横移在 30fps 下会有轻微顿挫感（judder） |
+| 画质 | 线性光 8 样本积分，比"后处理 blur 滤镜"干净得多（不会糊成一坨） | 无损失（就是清晰帧） |
+| 速度 | **慢 ≈6.4×**（每个动帧 = 8 次完整页面渲染 + 一次 numpy 积分） | 快 —— 本机实测 **18.4 帧/秒**（8525 帧 9 分钟） |
+| 磁盘 | 高：样本会堆积，必须靠 `--shutter-flush` 护栏压峰值（见 `render-profiles.md` §6） | 低（只剩最终帧） |
+| 值得开 | 有**真实位移运镜**（推拉摇移）、大片幅元素横穿、要电影感 | 画面以**静态排版 + 出场动画**为主（绝大多数 MG 科普 / 数据讲解片） |
+
+**判据：画面里有没有「大幅位移的连续运动」。** 只有淡入淡出、逐行出现、数字跳动的话，
+快门基本是白付 8× 的账；有横移 / 推镜时它才换来肉眼可辨的顺滑。
+
+#### ★ 只在需要的那几场开 —— 别让全片为几处运镜买单（v2.0.3）
+
+上面那张表是「全片开 / 全片关」的二选一。但真实片子里**需要拖影的往往只有几场**。
+三级闸门（粗 → 细）把成本只花在该花的帧上：
+
+```bash
+# ① 场景级白名单：只有这两场开快门，其余场走零成本单张（不采样 / 不落盘 / 不积分）
+node <skill>/scripts/render_video.mjs . --shutter-only hook,cta --jpeg --jpeg-quality 95
+
+# ② 帧级（可靠）：帧里导出 window.__motion(t0,t1)，位移 < 1 设备像素的帧自动单张落盘
+node <skill>/scripts/render_video.mjs . --motion-hold 1
+```
+
+| 级别 | 开关 | 粒度 | 判据 | 8525 帧实测 |
+|---|---|---|---|---|
+| ① | `--shutter-only <id,id>` | 场景 | 白名单 | 快门钉在点名的那几场，其余零成本 |
+| ② | `--motion-hold <px>`（默认 1） | 帧 | 页面导出的 `__motion` | **可靠**：位移不到 1px 直接单张，不截图 |
+| ③ | 自动，无开关 | 帧 | `first.equals(last)` | **只判掉 ~20%**，剩下 80% 全额付费 |
+
+> **为什么 ③ 不可靠**：阈值等于 0 —— 快门窗口只有 16.7 ms，任何亚像素抗锯齿差异都让两张
+> PNG 不等。实测 8525 帧里只有 **~20%** 被 ③ 判成 hold，截图吞吐 **18.4 → 2.9 帧/秒（≈6.4×）**。
+>
+> **想省快门成本，就让帧诚实导出 `window.__motion(t0,t1)`**（写法见 `motion-library.md`；
+> `assets/motion.js` 的 `screenTravel(c0,c1)` 直接给这段运镜走了多少 px）。
+>
+> ⚠ 反直觉坑：给整场加的**全时长缓慢推镜**每帧只走不到 1px（肉眼无拖影），却让 `__motion`
+> 全非零 → ②变成无操作、③必然不等 → **整场全额付费**。要么导出 `__motion` 让 ②摘掉它，
+> 要么别加这种「防静止」的整场推镜。
+>
+> 截图结束会打印 `快门覆盖面：X/Y 帧走快门采样`；日志里 `位移闸门 0` 就是
+> 「② 完全没起作用」的告警信号。
 
 **v2.0 画质×帧率档位**（`--profile`，显式开关永远覆盖档位默认值）：
 
@@ -169,8 +226,9 @@ node <skill>/scripts/render_video.mjs . --quality 2k --fps 60 --shutter 180   # 
 | `master` | 4K | 60 | 180° | 极限画质（PNG 精细 + 最慢编码） |
 | `legacy` | 1080p | — | 关 | 逐位复现 v1.4.x 旧成片 |
 
-- **快门运动模糊**是**线性光下多样本积分**（不是 blur 滤镜）；`hold` 静帧只截 2 张就跳过，
-  静止段几乎不额外耗时。快动作 > 80px/帧 不开快门会重影成串。
+- **快门运动模糊**是**线性光下多样本积分**（不是 blur 滤镜）；`hold` 静帧直接沿用单张，
+  不落样本、不进积分。**判 hold 有三级闸门（见上）—— 只有导出 `window.__motion` 的那级才可靠。**
+  快动作 > 80px/帧 不开快门会重影成串。
 - **多浏览器进程级并行**（`--workers`）+ `--resume` 断点续渲 + `--recycle` 定期重启浏览器（4K 长片防 OOM）。
 - 画质只改 `deviceScaleFactor`（1× / 1.333× / 2×），**布局逐像素不变**，只是采样更密。
 - 完整权衡（速度/质量/体积）、基准数据与硬件要求见 **`references/render-profiles.md`**。
@@ -346,6 +404,8 @@ FAIL 清零才算封面过。退出码 0/1，可直接挂流水线。
    → **★ 确认点 5 —— 渲染通道**：把 `png` / `png-fast` / `jpeg q95` / `jpeg q82` 四条摆给用户挑
    （每条带一句描述、逐帧耗时、相对速度与推荐口径，见上文「确认点 5」与 `references/render-profiles.md` §0），
    拍板后写进 `consent.json` 的 `render_channel`，跑 `gate_check.py --phase render` 放行
+   → **顺带问一句快门覆盖面**：全片开，还是只点名那几场（`--shutter-only`）？
+   （全片开 = 慢 ≈6.4×；片子只有几处运镜要拖影时**必须主动问**，别默认全片开）
    → 全片渲染 + qc_check
 7. **QC**：qc_report.md 的 FAIL 清零 + qc_sheet.jpg 肉眼过（字幕带 80–170px 无内容、一焦点、光跟主角）→ 按组修复 → 重渲
 8. **封面**：做 `frames/cover_169.html` + `cover_34.html`（独立排版；竖版投放再加 `cover_916.html`）
@@ -436,7 +496,7 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 | `scripts/style_director.py` | ★ **v2.0 主题驱动风格编排**：读 `narration.json` 推断每场角色（开场/陈述/数据/原理/例证/反差/收束/落版），按角色×子类别×时长×内容词打分挑**主风格**，按能量预算给部分场搭**次风格**（局部替换），决定**开场变体**、**场间转场**、**动效强度**，并施加多样性约束（风格数上限/连续同风格上限/开场≠第二场）。产物 `style-plan.json` 的 `why` 字段逐条可解释 |
 | `scripts/lint_frames.py` | **渲染前静态体检**：八条契约违规逐条报（外链字体/色值字面量/墙钟/`B()\|\|N`/字幕带压内容/缺中文字体族…）—— 只看**文本规则**，看不见几何 |
 | `scripts/check_layout.mjs` | **渲染前几何体检**（终态）：侵入字幕禁区 / 出画 / 文字被遮挡 / 文字重叠 = ERROR；越安全边 / 文字压色块 / 色块重叠 = WARN；疑似未对齐 = INFO。量的是**字墨范围**（Range 逐行）而非元素框。`--only` / `--json` / `--safe-bottom`；有 ERROR 退出码 1 |
-| `scripts/render_video.mjs` | 渲染器：浏览器探测 → 逐场景 seek 截图 →（可选快门运动模糊积分）→ ffmpeg 合成；`--preview N` 快样片，`--only <场景id>` 只重渲指定场景（**仅末场安全**，变短后须清尾部过期帧，见 lessons 45），`--mux-only` 用现有帧重新合成；**帧里有满幅照片就必须换截图模式**（默认 PNG 编码占 96% 帧时间且与并发无关）：`--png-fast` 无损 4.4×，`--jpeg --jpeg-quality 95` 13×；`--crf N` / `--preset <名>` 单独控制成片码率。**v2.0 新增**：`--profile` 成套档位、`--quality`×`--fps` 自由组合、`--shutter` 快门运动模糊、`--workers` 多浏览器进程级并行、`--resume` 断点续渲、`--recycle` 定期重启浏览器 |
+| `scripts/render_video.mjs` | 渲染器：浏览器探测 → 逐场景 seek 截图 →（可选快门运动模糊积分）→ ffmpeg 合成；`--preview N` 快样片，`--only <场景id>` 只重渲指定场景（**仅末场安全**，变短后须清尾部过期帧，见 lessons 45），`--mux-only` 用现有帧重新合成；**帧里有满幅照片就必须换截图模式**（默认 PNG 编码占 96% 帧时间且与并发无关）：`--png-fast` 无损 4.4×，`--jpeg --jpeg-quality 95` 13×；`--crf N` / `--preset <名>` 单独控制成片码率。**v2.0 新增**：`--profile` 成套档位、`--quality`×`--fps` 自由组合、`--shutter` 快门运动模糊、`--workers` 多浏览器进程级并行、`--resume` 断点续渲、`--recycle` 定期重启浏览器。**v2.0.2/.3 新增**：`--shutter-flush` 快门样本磁盘护栏（防峰值堆到数十 GB）、`--shutter-only <id,id>` 场景级快门白名单、`--motion-hold <px>` 位移闸门（配合帧导出的 `window.__motion`） |
 | `scripts/blur_integrate.py` | **快门运动模糊积分器**（渲染管线第 2 段）：把 Node 侧抓到的 K 张快门样本在**线性光**下逐像素平均 —— 真的积分，不是 blur 滤镜。多进程并行、天然支持断点续渲 |
 | `scripts/bench_render.py` | **渲染管线基准工装**：合成复杂度可控的项目 → 同机多档位各渲一遍 → 拉出「截图耗时/fps/体积」对比表（优化前后同表对比） |
 | `scripts/qc_check.py` | 流/时长/音量/抽帧体检 + contact sheet |
