@@ -95,8 +95,8 @@ var tEnd = Be('证据');                                              // 该块�
 
 | 层 | 说明 |
 |----|------|
-| `#mg-subs` | 硬字幕层（44px 白字黑边、bottom 96px、单帧硬切）——按 subs.json 块表逐帧切换 |
-| `#mg-progress` | 全局进度条（bottom 0–12px、accent 填充、章节刻度）——按全局时间填充 |
+| `#mg-subs` | 硬字幕层（44px、bottom 96px、单帧硬切）——按 subs.json 块表逐帧切换。**兜底是白字黑边**；肤色调 `--mg-sub-fg` / `--mg-sub-stroke`（亮底片必须在 theme.css 的 `:root` 覆写 —— 渲染器没有 `body.paper` 规则，`class="paper"` 是惰性标记） |
+| `#mg-progress` | 全局进度条（bottom 0–12px、accent 填充、章节刻度）——按全局时间填充。肤色调 `--mg-track` / `--mg-tick` |
 
 两者 z-index 900/901，`pointer-events:none`。**内容区别压进字幕带（80–170px），进度条带（0–12px）也别放东西。**
 

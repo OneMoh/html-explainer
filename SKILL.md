@@ -1,7 +1,7 @@
 ---
 name: html-explainer
-version: 2.0.4
-description: 把任意主题做成「讲解/科普视频」并渲染成 MP4：调研→审查→解说词→字幕→配音（edge-tts，或火山引擎语音合成 2.0）→**主题驱动风格编排**→并行构建 HTML 场景→确定性逐帧渲染→成片后出多画幅封面。**画面语言内置 23 个模板风格 / 8 个类别**（大胆信号卡、奢华极简、NYT 数据图表、瑞士网格、故障艺术、胶片漏光、流体 Hero、Logo 收尾、东方柔和有机、VFX 文字光标…共 23 种风格，含每种的画布/配色/字体/时间轴规范，见 references/style-catalog.md）。**v2.0 新增**：①**动效库**（`assets/motion.js`，5 组共 40+ 动作词汇：弹簧/进出场/承接/接触/运镜/环境光）；②**4K60 + 快门运动模糊**（`--quality / --fps / --profile`，线性光积分 + 三级快门闸门 `--shutter-only` / `--motion-hold`）；③**渲染提速**（多浏览器进程级并行 / `--png-fast` / `--jpeg` / `--resume` 断点续渲），且**渲染前必须先问用户选哪条中间帧通道**（`png` / `png-fast` / `jpeg q95` / `jpeg q82`，附速度对比与推荐；未拍板由 `gate_check.py --phase render` 挡下）；④**主题驱动模板编排**（`scripts/style_director.py`，按内容类型/情绪/节奏/受众挑风格、混用与局部替换、动态开头与转场，不再一片一模板）。流程规范与音画同步体系承自 anything2explainer（词边界字幕、两级时钟、语速标定、多 agent 分工与 QC 判据），渲染层为自研 seek 式渲染器。**封面默认 16:9 + 3:4 两张**：抖音主封面 1920×1080 + 兼容主页栅格 3:4 的 1440×1080（独立重排，防切字）；**竖版投放再加 9:16 的 1080×1920**（左右并置必须改上下堆叠、上下边距让开平台 UI 层）。独立可移植：GSAP 内置、playwright-core 随包、ffmpeg 走 imageio-ffmpeg 回退、浏览器自动探测 Chrome/Edge；**不依赖 html-video / anything2explainer 任何代码或目录**。触发场景：要做科普/讲解/教学/知识/产品类视频、"讲一下 X 做成视频"、要用 html-video 那种模板化画面但更稳的音画同步、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面/9:16 封面、anything2explainer 换 HTML 渲染、或提到 html-explainer / HTML 讲解视频 / explainer video / MG 视频。
+version: 2.0.5
+description: 把任意主题做成「讲解/科普视频」并渲染成 MP4：调研→审查→解说词→字幕→配音（edge-tts，或火山引擎语音合成 2.0）→**主题驱动风格编排**→并行构建 HTML 场景→确定性逐帧渲染→成片后出多画幅封面。**画面语言内置 23 个模板风格 / 8 个类别**（大胆信号卡、奢华极简、NYT 数据图表、瑞士网格、故障艺术、胶片漏光、流体 Hero、Logo 收尾、东方柔和有机、VFX 文字光标…共 23 种风格，含每种的画布/配色/字体/时间轴规范，见 references/style-catalog.md）。**v2.0 新增**：①**动效库**（`assets/motion.js`，5 组共 40+ 动作词汇：弹簧/进出场/承接/接触/运镜/环境光）；②**4K60 + 快门运动模糊**（`--quality / --fps / --profile`，线性光积分 + 三级快门闸门 `--shutter-only` / `--motion-hold`）；③**渲染提速**（多浏览器进程级并行 / `--png-fast` / `--jpeg` / `--resume` 断点续渲），且**渲染前必须先问用户选哪条中间帧通道**（`png-fast` / `jpeg q95` / `png` / `jpeg q82`，**默认推荐 `png-fast`**，四条都要列全并附速度对比与描述；未拍板由 `gate_check.py --phase render` 挡下）；④**主题驱动模板编排**（`scripts/style_director.py`，按内容类型/情绪/节奏/受众挑风格、混用与局部替换、动态开头与转场，不再一片一模板）。流程规范与音画同步体系承自 anything2explainer（词边界字幕、两级时钟、语速标定、多 agent 分工与 QC 判据），渲染层为自研 seek 式渲染器。**封面默认 16:9 + 3:4 两张**：抖音主封面 1920×1080 + 兼容主页栅格 3:4 的 1440×1080（独立重排，防切字）；**竖版投放再加 9:16 的 1080×1920**（左右并置必须改上下堆叠、上下边距让开平台 UI 层）。独立可移植：GSAP 内置、playwright-core 随包、ffmpeg 走 imageio-ffmpeg 回退、浏览器自动探测 Chrome/Edge；**不依赖 html-video / anything2explainer 任何代码或目录**。触发场景：要做科普/讲解/教学/知识/产品类视频、"讲一下 X 做成视频"、要用 html-video 那种模板化画面但更稳的音画同步、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面/9:16 封面、anything2explainer 换 HTML 渲染、或提到 html-explainer / HTML 讲解视频 / explainer video / MG 视频。
 agent_created: true
 ---
 
@@ -27,7 +27,7 @@ agent_created: true
 | **宣传片范式**（去模板化：模板只吸纳配色/字体/时序三层） | 设计方法 | `references/showcase-mode.md` |
 | **库全量演示编排**（统一舞台 + 节拍网格 + 标签常驻） | 设计方法 | `references/library-showcase.md` |
 | **确认闸门**（六个确认点由用户拍板才放行） | `scripts/gate_check.py` | `SKILL.md` 流程第 3 步 |
-| **★ 渲染通道确认**（渲染前必问：`png` / `png-fast` / `jpeg q95` / `jpeg q82`，附速度与推荐） | `consent.json` 的 `render_channel` + `gate_check.py --phase render` | `SKILL.md` 确认点 5 · `references/render-profiles.md` §0 |
+| **★ 渲染通道确认**（渲染前必问：`png-fast` / `jpeg q95` / `png` / `jpeg q82`，**默认推荐 `png-fast`**，附速度与描述） | `consent.json` 的 `render_channel` + `gate_check.py --phase render` | `SKILL.md` 确认点 5 · `references/render-profiles.md` §0 |
 
 把一个主题做成**原创**讲解视频：任意风格的 MG 画面（HTML/CSS/GSAP，1920×1080 或竖版）、
 配音（edge-tts）、词级对齐硬字幕、全局进度条。一句话一个场景，画面节拍直接锚在
@@ -109,7 +109,7 @@ PY=<venv python 绝对路径>          # 派子 agent 时必须展开成绝对�
 "$PY" <skill>/scripts/gate_check.py     --project . --phase render   # ★★ 渲染前必过：render_channel（渲染通道）未拍板 → 拒绝渲染
 "$PY" <skill>/scripts/lint_frames.py    --project .   # 静态体检：八条契约违规（渲染前一秒出结果，比渲完再发现便宜得多）
 node <skill>/scripts/check_layout.mjs   .             # ★ 几何体检：越界 / 侵入字幕带 / 元素互相遮挡（lint 看不见几何）
-node <skill>/scripts/render_video.mjs   . [--audio audio/narration-full.mp3] [--profile draft|balanced|final|master] [--quality 1080p|2k|4k] [--fps 30|60] [--shutter 180] [--shutter-flush 4] [--shutter-only <场景id,场景id>] [--motion-hold 1] [--preview 30] [--keep-frames] [--only <场景id>] [--mux-only] [--jpeg --jpeg-quality 95|--png-fast] [--workers N] [--concurrency N] [--resume]   # 渲染：out/<slug>.mp4（★ 通道/档位先按确认点 5 问过用户；★ 通道与档位必须一起报——`--jpeg` 与默认快门同时用，中间帧扩展名要一路贯穿到积分器；★ 快门覆盖面也要问：全片开还是 `--shutter-only` 点名几场）
+node <skill>/scripts/render_video.mjs   . [--audio audio/narration-full.mp3] [--profile draft|balanced|final|master] [--quality 1080p|2k|4k] [--fps 30|60] [--shutter 180] [--shutter-flush 4] [--shutter-only <场景id,场景id>] [--motion-hold 1] [--preview 30] [--keep-frames] [--only <场景id>] [--mux-only] [--png-fast|--jpeg --jpeg-quality 95] [--workers N] [--concurrency N] [--resume]   # 渲染：out/<slug>.mp4（★ 通道/档位先按确认点 5 问过用户；★ 通道与档位必须一起报——`--jpeg` 与默认快门同时用，中间帧扩展名要一路贯穿到积分器；★ 快门覆盖面也要问：全片开还是 `--shutter-only` 点名几场）
 "$PY" <skill>/scripts/qc_check.py       --project .   # 体检 + 抽帧速览图
 node <skill>/scripts/cover_build.mjs    .             # 封面：out/cover_169.png + cover_34.png（竖版再加 cover_916.png）
 node <skill>/scripts/check_cover.mjs    .             # 封面终态几何实测：边距/钩子字号/行宽/孤字/文字重叠/9:16 禁两栏（FAIL 清零再交）
@@ -127,33 +127,49 @@ node <skill>/scripts/check_cover.mjs    .             # 封面终态几何实测
 不许凭「上次用的 png-fast」或「PNG 是默认」就静默开工。** 用户在打样阶段选定后，
 同一轮的重复渲染可沿用；**换通道或换档位要重新确认一次**。
 
-| 通道 | 参数 | 逐帧编码耗时（纯 CSS 图形 / 满幅照片） | 相对速度 | 画质（客观口径） | 中间帧体积（1080p 实测） | 定位 |
-|---|---|---|---|---|---|---|
-| **JPEG q95** ★**默认推荐** | `--jpeg --jpeg-quality 95` | — / 52ms | **×13** | PSNR **41.65 dB**，**低于 x264 crf18 成片自身失真** | **0.23 MB/帧**（8525 帧 ≈ **1.9 GB**） | 快 13×、体积 1/5，失真在成片里不可观测 → 默认就用它 |
-| **PNG-fast** | `--png-fast` | — / 132ms | ×4.4 | 逐像素无损（PSNR 99 dB、最大差 0） | ~2.0 MB/帧 | 只有「中间帧也必须逐像素无损」的合规/归档需求才值得付 3× 时间与 8× 磁盘 |
-| **PNG**（1.4.x 默认） | 不带开关 | 45ms / **582ms** | ×1.0（基准） | 逐像素无损 | 1.6 MB/帧 | 仅 `--profile legacy` 逐位复现旧成片、或 `master` 极限档 |
-| **JPEG q82** | `--jpeg --jpeg-quality 82` | — / 41ms | ×14 | 略低于 q95，仍高于多数成片编码失真 | ~0.1 MB/帧 | 只做打样/迭代预览，不用于交付 |
+| 通道 | 参数 | 相对速度（纯 CSS 图形帧并行 / 满幅照片帧） | 画质（客观口径） | 中间帧体积（1080p · 纯图形帧实测） | 定位 |
+|---|---|---|---|---|---|
+| **PNG-fast** ★**默认推荐** | `--png-fast` | **×1.02 / ×4.4** | 逐像素无损（PSNR 99 dB、最大差 0） | **0.10 MB/帧**（8525 帧 ≈ **0.85 GB**） | 纯 CSS/MG 图形帧上**与 JPEG q95 同速、体积更小、还是无损** → 默认就用它 |
+| **JPEG q95** | `--jpeg --jpeg-quality 95` | ×1.00 / **×13** | PSNR **41.65 dB**，低于 x264 crf18 成片自身失真 | 0.12 MB/帧 | **含满幅照片 / 重合成帧、或 4K 终稿**时的首选（照片帧上 PNG 是 582ms/帧的黑洞） |
+| **PNG**（1.4.x 默认） | 不带开关 | ×1.16 / ×1.0（基准） | 逐像素无损 | 0.08 MB/帧 | 仅 `--profile legacy` 逐位复现旧成片、或 `master` 极限档 |
+| **JPEG q82** | `--jpeg --jpeg-quality 82` | 最快 | 略低于 q95，仍高于多数成片编码失真 | ~0.08 MB/帧 | 只做打样/迭代预览，不用于交付 |
 
-**为什么 JPEG q95 不算「降质」**：中间帧还要再被 x264 压一次才成为成片，所以中间帧的相对失真
-只要**低于成片编码自身的失真**就完全不可观测 —— q95 的 PSNR 41.65 dB 正好低于 crf18 自身失真，
-等于**零代价**换来 13× 编码速度与 1/5 磁盘。PNG/PNG-fast 的「逐像素无损」在这一环没有可观测收益。
+> **体积口径提醒**：上表体积是**纯 CSS/MG 图形帧**（大面积平色 + 文字）实测。同一批通道在
+> **满幅照片 / 重合成帧**上会整体抬高一到两个数量级（精细 PNG 单帧可达 1.6–2.0 MB），
+> 表格里的相对关系不变，但绝对量级不可直接套用。
 
-**怎么问（照抄这句）**：
+**为什么默认改成 PNG-fast（2026-10-05 口径修订）**：原表把 JPEG q95 列为默认推荐，
+依据是「×13 编码速度」—— 但那组倍率测的是**满幅照片帧**。本技能绝大多数片子是
+**纯 CSS/MG 图形帧**，PNG 的 deflate 对平色块极其高效，本机 6 进程并行实测：
+
+| 通道 | 吞吐 | 相对 | 体积 |
+|---|---|---|---|
+| JPEG q95 | 27.14 帧/秒 | ×1.00 | 0.12 MB/帧 |
+| **PNG-fast** | **26.65 帧/秒** | **×1.02** | **0.10 MB/帧** |
+| PNG 精细 | 23.41 帧/秒 | ×1.16 | 0.08 MB/帧 |
+
+→ **纯图形帧上 PNG-fast 与 JPEG q95 基本同速、体积更小、且逐像素无损**，默认场景下全面占优。
+而「**JPEG q95 不是降质**」这句依然成立：中间帧还要再被 x264 压一次，q95 的 PSNR 41.65 dB
+低于 crf18 成片自身失真，所以它在**照片帧 / 4K 终稿**里依旧是对的默认。
+
+**怎么问（照抄这句，四条都要列全 —— 这是硬要求）**：
 > 渲染通道你要哪条？
-> **① JPEG q95（推荐 —— 快 13×、体积 1/5；失真低于成片自身编码失真，肉眼无差）**
-> ② PNG-fast（中间帧逐像素无损，但慢 3×、占盘 8×，成片画质无可观测收益）
-> ③ PNG（最慢，只有要逐位复现 1.4.x 老成片时才选）④ JPEG q82（最快，只适合打样）
+> **① PNG-fast（推荐 —— 纯 CSS/MG 图形帧上实测与 JPEG q95 同速、体积更小，且逐像素无损）**
+> ② JPEG q95（**含满幅照片/重合成帧、或 4K 终稿**时首选；照片帧上 PNG 是 582ms/帧的黑洞。不失质：失真低于成片自身编码失真）
+> ③ PNG（最慢，只有要逐位复现 1.4.x 老成片时才选）
+> ④ JPEG q82（最快，只适合打样）
 
 **自动推荐口径**（给建议时按这个判，但仍要用户点头）：
-- **默认（绝大多数片子，尤其纯 CSS/MG 图形帧）** → **`--jpeg --jpeg-quality 95`**。
-- 帧里有**满幅照片 / 重合成** → `--jpeg q95` 首选（PNG 在照片帧上是 582ms/帧，是最大的时间与磁盘黑洞）。
+- **默认（绝大多数片子，纯 CSS/MG 图形帧）** → **`--png-fast`**（同速 + 体积更小 + 逐像素无损）。
+- 帧里有**满幅照片 / 重合成**、或 **4K 终稿** → **`--jpeg --jpeg-quality 95`**
+  （照片帧上 PNG 是 582ms/帧，是最大的时间与磁盘黑洞；4K 精细 PNG 单帧 2–6 MB）。
 - **中间帧必须逐像素无损**（合规 / 归档 / 要拿去二次调色）→ `--png-fast`。
 - 只是**看节奏的打样** → `--profile draft`（档位内已含 `png-fast`）+ `--preview`。
-- **4K 终稿** → 必须 `--jpeg q95` 或 `--png-fast`（精细 PNG 会把磁盘与编码时间吃干，见 §6）。
+- **精细 PNG** → 只在 `--profile legacy` 逐位复现旧成片时才用。
 
-> 档位表里的 `shot` 字段（`balanced`/`final` = `png-fast`）**保持原样不动** —— 那是历史默认，
-> 改了会破坏「不传新参数时行为等价于旧 1080p30 默认」的承诺。**推荐口径与档位默认值是两回事**：
-> 实操一律**显式**加 `--jpeg --jpeg-quality 95`。
+> 档位表里的 `shot` 字段（`draft`/`balanced`/`final` = `png-fast`）**保持原样不动** ——
+> 它现在与推荐口径**是同一个值**：不传通道参数时就走 PNG-fast，两者已不再冲突。
+> 只有照片 / 4K 场景才**显式**加 `--jpeg --jpeg-quality 95`。
 
 **关键事实：中间帧编码在浏览器进程内是串行的，`--concurrency` 对 PNG 完全无效**
 （实测并发 1/3/6 路的总吞吐 1.80 / 1.86 / 1.87 帧/秒）。想加速只有两条路：**换通道**或

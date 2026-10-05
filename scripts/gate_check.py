@@ -29,7 +29,7 @@ agent 直接跑 style_director.py 就自选了风格，用户事后才发现「�
    - `voice`           配音方案 + 音色
    - `duration_sec`    目标时长
    - `cover`           封面规格（哪几张）
-   - `render_channel`  渲染通道（png / png-fast / jpeg q95 / jpeg q82）★ 渲染前必问
+   - `render_channel`  渲染通道（**默认推荐 png-fast** / jpeg q95 / png / jpeg q82）★ 渲染前必问
 3. 若某项 `decided_by != "user"` → **停下**，把候选列给用户，拿到答复再改这个字段
 
 设计原则：**脚本不替用户做任何选择**，`--init` 生成的模板里 choice 全为空字符串。
@@ -49,7 +49,7 @@ REQUIRED = [
     ("voice", "配音方案 + 音色（edge / 火山，及具体音色 ID）"),
     ("duration_sec", "目标时长（秒）"),
     ("cover", "封面规格（16:9 / 3:4 / 9:16 各几张）"),
-    ("render_channel", "渲染通道（png / png-fast / jpeg q95 / jpeg q82）—— 渲染前必须问，见 SKILL.md 确认点 5"),
+    ("render_channel", "渲染通道（**默认推荐 png-fast** / jpeg q95 / png / jpeg q82）—— 渲染前必须问，见 SKILL.md 确认点 5"),
 ]
 
 # --phase render 只查这几项（其余早已在场景构建前定下）
@@ -68,9 +68,10 @@ TEMPLATE = {
 
 # 渲染通道的候选（仅用于提示，选择权在用户）
 CHANNEL_HINT = (
-    "渲染通道候选（★推荐第 1 条）：jpeg q95（×13、体积 1/5 —— 失真低于成片自身编码失真，"
-    "成片里不可观测）· png-fast（中间帧逐像素无损，×4.4，但慢 3×/占盘 8×，成片画质无可观测收益）"
-    "· png（最慢，只在要逐位复现 1.4.x 老成片时选）· jpeg q82（×14，只适合打样）"
+    "渲染通道候选（★推荐第 1 条）：png-fast（中间帧逐像素无损 —— 纯 CSS/MG 图形帧上实测与 "
+    "jpeg q95 同速、体积还更小，默认就用它）· jpeg q95（×13、体积 1/5 —— 含满幅照片/重合成帧 "
+    "或 4K 终稿时的首选；失真低于成片自身编码失真，成片里不可观测）"
+    "· png（最慢，只在要逐位复现 1.4.x 老成片时选）· jpeg q82（最快，只适合打样）"
 )
 
 

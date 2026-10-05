@@ -135,10 +135,16 @@ ls -la --time-style=+%H:%M frames/*.html | awk '{print $6,$7,$5}' | sort   # 看
 ### 亮底（paper）组的额外硬规矩
 
 分给别人的亮底帧，prompt 里必须写死三件事（漏掉就会得到白底白字，且只有人眼能发现）：
-① **`<body class="paper">` 必须加**（`body.paper` 才会把渲染器的字幕层/进度条换成深色皮肤）；
+① **字幕/进度条肤色必须落在 `theme.css` 的 `:root` 里** —— 覆写
+   `--mg-sub-fg` / `--mg-sub-stroke` / `--mg-track` / `--mg-tick`
+   （渲染器注入的 `#mg-subs` / `#mg-progress` 兜底是白字黑边 + 白色轨道，只对深底成立）；
+   ⚠ 渲染器**没有** `body.paper` 规则（`grep -n '\.paper' scripts/render_video.mjs` 为空），
+   所以 `<body class="paper">` 在当前版本是**惰性标记**，不受它控制 —— 亮底全片请走 :root 覆写这条路。
+   若整片就是亮底（如纸墨系主题），更省事的做法是把纸墨变量直接做成 :root 主色，别维护双套；
 ② **点名同组里哪些帧不能加**（暗底帧）；
 ③ **强调色只能用 `var(--accent-on-paper)`**，`var(--accent)` #22D3EE 在白底上对比度不足。
-交付后自查：`grep -n '<body' frames/tw_*.html` —— 该带的行行都要带，不该带的一行都不能带。
+交付后自查：`grep -n 'mg-sub-fg' theme.css` —— 亮底片必须命中；只有纯深底片才允许不命中。
+（`grep -n '<body' frames/*.html` 只能用来核对「亮底帧别忘了顺带铺 --paper 背景」，不能用来判断肤色。）
 
 构建 agent prompt 模板：
 > 你是动效场景工程师。项目 <dir>。读 <dir>/frames/_template.html（契约模板）、
@@ -153,7 +159,7 @@ ls -la --time-style=+%H:%M frames/*.html | awk '{print $6,$7,$5}' | sort   # 看
 ## 阶段 5 · 渲染与打样
 
 ```bash
-node <skill>/scripts/render_video.mjs . --preview 30 --jpeg   # 前 30 秒草稿（JPEG 快渲）
+node <skill>/scripts/render_video.mjs . --preview 30 --png-fast   # 前 30 秒草稿（png-fast：纯图形帧上与 JPEG 同速且无损）
 ```
 
 **确认点 4**：把 preview.mp4 给用户看，风格/字号/语速/节奏在这里一次定稿。
@@ -162,15 +168,16 @@ node <skill>/scripts/render_video.mjs . --preview 30 --jpeg   # 前 30 秒草稿
 确认后全片渲染：
 
 ```bash
-node <skill>/scripts/render_video.mjs .               # PNG 精渲 + 音轨 mux → out/<slug>.mp4
+node <skill>/scripts/render_video.mjs .               # 默认 PNG-fast + 音轨 mux → out/<slug>.mp4
 "$PY" <skill>/scripts/qc_check.py --project .          # 体检 + 抽帧速览图
 ```
 
 > **画面里有满幅照片时，先换截图模式再开渲**（`lessons.md` 第 69 条）：
 > 默认 PNG 对照片帧是 582ms/帧（纯 CSS 图形帧只要 45ms），且编码在浏览器进程内串行，
 > **加 `--concurrency` 毫无作用**（并发 1/3/6 路总吞吐 1.80/1.86/1.87 帧/秒）。
-> 修法：**默认走 `--jpeg --jpeg-quality 95`（13×、体积 1/5，失真低于成片自身编码失真）**；
-> 只有「中间帧必须逐像素无损」（合规 / 归档 / 二次调色）时才退到 `--png-fast`（4.4×）。
+> 修法：**图形帧默认走 `--png-fast`**（纯 CSS/MG 图形帧上实测与 JPEG q95 同速、体积更小，且逐像素无损）；
+> **含满幅照片 / 重合成帧、或 4K 终稿**时才改用 `--jpeg --jpeg-quality 95`（照片帧上 13×、体积 1/5，
+> 失真低于成片自身编码失真）。
 > 判断口径：**开工前先看一眼「帧里有没有满幅照片」，有就换，别等渲了半小时才发现。**
 
 ### 改一句文案之后

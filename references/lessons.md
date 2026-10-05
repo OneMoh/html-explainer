@@ -1662,3 +1662,78 @@
     清理建议：中间产物整目录**先 `os.replace` 整体 rename 到系统临时目录再删**（单次元数据操作），
     比逐文件 rmtree 快得多，也能绕开逐文件计数触发的批量删除保护。本轮把 `render/` 从 8.3 GB 清到 0，
     项目目录回落到 32 MB。
+
+128. **★（2026-10-05）渲染器里没有 `body.paper` 规则 —— 亮底全片的字幕皮肤只能靠 `theme.css` 的 `:root` 覆写 `--mg-sub-*`。**
+
+    事实核验（三处，缺一不可）：
+    - `grep -n '\.paper' scripts/render_video.mjs` → **空**（没有任何 `body.paper` 规则）；
+    - `grep -n 'mg-sub' scripts/render_video.mjs` → 只有 `OVERLAY_CSS` 里
+      `color: var(--mg-sub-fg, #FFFFFF)` 与 `text-shadow: … var(--mg-sub-stroke, #000)`，
+      **兜底是「白字 + 黑描边」**，只对深底成立；
+    - 技能自带的 `scripts/make_theme.py` 也只吐 `:root` 变量，**不生成**任何 `body.paper` 块。
+
+    结论：`<body class="paper">` 在当前版本是**惰性标记**（帧里也找不到任何 `.paper` 选择器去消费它）。
+    亮底片要让字幕/进度条换成深色皮肤，必须在自己的 `theme.css` 的 `:root` 里写全四个变量：
+    `--mg-sub-fg`（墨字）/ `--mg-sub-stroke`（暖白描边）/ `--mg-track`（轨道底）/ `--mg-tick`（章节刻度）。
+
+    为什么危险：亮底片若沿用默认主题（只给了 `--bg-0`/`--paper` 等，没给 `--mg-sub-*`），
+    字幕就是白字黑边压在米色纸上 —— **lint 过、几何检查过、QC（时长/音量）也过，只有人眼能发现**。
+    自查一行：`grep -n 'mg-sub-fg' theme.css`，亮底片必须命中。
+
+    已改：`references/workflow-guide.md`「亮底（paper）组的额外硬规矩」①（原文说「`body.paper` 才会换肤」，
+    是过时描述）、`references/frame-contract.md` 的 `#mg-subs`/`#mg-progress` 两行（补上变量名 +
+    「class 是惰性标记」的警告 + 自查方式从 `grep '<body'` 改为 `grep 'mg-sub-fg'`）。
+
+129. **★（2026-10-05）别把「渲染器不支持 CSS 动画」当常识 —— `@keyframes` 是受支持且确定性的；lint 也只禁 `transition`。**
+
+    事实：`render_video.mjs` 的 seek 函数里有两件事（约 311–327 行）——
+    ```js
+    let tl = window.__tl || null;                       // GSAP 时间轴
+    if (document.getAnimations) {                       // ★ CSS 动画同样对齐
+      document.getAnimations().forEach((a) => {
+        try { a.pause(); a.currentTime = Math.round(t * 1000); } catch (e) {}
+      });
+    }
+    ```
+    即：每帧先 `tl.pause(t)` seek GSAP，再把**所有 CSS 动画 pause 并把 `currentTime` 对齐到同一个 t**。
+    所以 `@keyframes ... infinite` 的相位由帧时间决定，**可复现、不会闪** —— `frames/_template.html` 里
+    「@keyframes 循环装饰可用，渲染器会同步 seek 它」是对的。
+
+    真正被禁的只有 **`transition:`**（`lint_frames.py` 有 `CSS_TRANSITION = re.compile(r"transition\s*:", re.I)`，
+    报错文案「CSS transition → 逐帧 seek 不生效，入场必须用 GSAP」）。lint **没有** animation/@keyframes 规则。
+
+    为什么值得记：本轮改版时我凭「CSS 循环动画在 seek 渲染下会闪」的直觉，把一个色散动画拆掉并把这个
+    **错误理由**写进了帧注释和交付文档 —— 查代码才发现渲染器早就同步了。**规则：想断言「渲染器不支持 X」，
+    先去 `render_video.mjs` 里 `grep` X 的实现，别信直觉。**
+
+    附一条真正的坑（本轮同源）：删帧内 CSS 时，容易被「注释里写的机制」误导，而注释可能本身就是上一轮
+    写错的。**改完顺手核一遍同文件里引用该机制的注释。**
+
+130. **★★（2026-10-05）通道的「×13 / 慢 3×」是**照片帧**口径 —— 套到纯 CSS 图形帧上会把默认推荐选错。**
+
+    背景：`render-profiles.md` 长期把 **JPEG q95** 列为默认推荐，唯一依据是「比 PNG 快 13×」。
+    本轮一条 5982 帧的**纯 CSS/MG 图形帧**片子（1920×1080）实测下来，这个前提不成立：
+
+    | 通道 | 6 进程并行吞吐 | 相对 | 体积/帧 | 画质 |
+    |---|---|---|---|---|
+    | JPEG q95 | 27.14 帧/秒 | ×1.00 | 0.12 MB | PSNR 41.65 dB |
+    | **PNG-fast** | **26.65 帧/秒** | **×1.02** | **0.10 MB** | **逐像素无损** |
+    | PNG 精细 | 23.41 帧/秒 | ×1.16 | 0.08 MB | 逐像素无损 |
+
+    → **纯图形帧上 PNG-fast 与 JPEG q95 同速、体积更小、还无损**，三面全赢。
+    → 端到端：同片 JPEG q95 = 460.7 s，换 PNG-fast 预计 468–493 s（**+2%～+5%，仅多 10–32 秒**）。
+
+    根因：高倍率来自 **PNG 的 deflate 在照片/高熵帧上失效**（582ms/帧）；
+    而纯 CSS 图形帧是大面积平色 + 锐利文字，deflate 反而比 JPEG 更省。
+    **倍率是帧内容的函数，不是格式的常数**：
+
+    - 满幅照片 / 重合成帧：JPEG q95 ≈ ×13、体积约 1/5 → 选 `--jpeg --jpeg-quality 95`
+    - 纯 CSS/MG 图形帧：两者同速，PNG-fast 更小且无损 → 选 `--png-fast`（现为默认）
+    - 4K 终稿：精细 PNG 单帧 2–6 MB，无论哪种片子都要避开
+
+    纪律：**读性能表先看它的测量物料是什么。** 表头写着「满幅照片」的倍率，不能拿来指导图形帧选型；
+    体积数字同理（纯图形帧 0.08–0.12 MB/帧，照片帧可达 1.6–2.0 MB/帧，差一个数量级）。
+
+    已据此把默认推荐改为 `--png-fast`（**v2.0.5**），并保留照片 / 4K 的例外口径，
+    以及在询问话术里**四条全列**（用户明确要求：列举 + 推荐 + 描述，一个都不能省）。
+    复现工装：`scripts/bench_render.py`；本轮原始数据见项目内 `基准-渲染通道实测.md`。
