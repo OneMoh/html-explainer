@@ -11,6 +11,52 @@
 
 ---
 
+## [2.0.6] — 2026-10-06
+
+> **渲染器「精细 PNG 单浏览器」路径（路径 A）上的两处静默缺陷。**
+> 由一条 7195 帧 / 1080p / 24 场的真实讲解片驱动：全片跑到第 7 场时被看门狗判成「停滞」并
+> `exit(3)`，而**那一场只差 24 帧（约 7 秒）就渲完了**。两处缺陷都**不报错**，
+> 代价都是白跑一轮 —— 而且第二处正是第一处提示你去踩的。
+
+### 修复
+
+- **★ 路径 A 的看门狗把「单场耗时」当成「进程挂死」。**
+  `pokeWatchdog()` 原先**只在并行路径**（`renderParallel()`：快门积分前后、等屏障时）被调用，
+  而本路径的 `doneFrames` **只在整场渲完才累加** → 看门狗量到的其实是「这一场渲了多久」。
+  默认 `WATCHDOG_MS = max(60s, SHOT_TIMEOUT_MS + 45s) = 105s`，于是等价于
+  **「任何单场超过 105 秒即判挂死」**。本机 1080p 精细 PNG 约 3.5 帧/秒 ⇒
+  **超过 ~12 秒的场必然误杀**；本片 `s2013_gold`（12.82 s / 396 帧 / 需 ~114 s）
+  正是这样死在第 372 帧。修法：`renderLegacy()` 的逐帧循环里补上对称的 `pokeWatchdog()`。
+  **判据**：修复后同一场在**默认 105 s 窗口**下顺利渲完 —— 不靠放大 `HX_SHOT_TIMEOUT_MS`
+  "通过"，那只是把阈值挪走，判据本身还是错的。
+
+- **★ `--resume` 在路径 A 是静默 no-op。** 续渲逻辑只写在 `renderParallel()` 的
+  `pendingFrames` 过滤里，本路径加了 `--resume` **既不报错、也不跳帧**
+  （与 `--workers` 在 `useLegacy` 下无效同族）。更糟的是**看门狗挂死时的提示恰恰写着
+  「加 `--resume` 可直接接着跑」**——把人骗进第二次白跑；而**精细 PNG 只能走路径 A**，
+  它偏偏是最需要续渲的那条。修法：路径 A 按**全局帧号**判同名帧是否在盘上
+  （`shotOne()` 写的本来就是 `sc.gf + i + 1`），**整场都在盘上时连页面都不加载**。
+
+### 文档同步（口径一致性）
+
+- 看门狗挂死提示**按路径分叉**：并行路径给「调小 `HX_SHOT_TIMEOUT_MS` / 降 `--workers`」，
+  路径 A 给「调大 `HX_SHOT_TIMEOUT_MS` / 加 `--resume` / 只差尾部几场用 `--only`」三条。
+- `references/render-profiles.md`：§断点续渲补「两条路径都支持」与 v2.0.6 前的静默行为；
+  §健壮性补「**两条路径都必须按帧打点**」与误杀阈值推算。
+- 顺带修正一处**文档与代码不符**：`--resume` 的判据是 **`fs.existsSync`（存在性）**，
+  **不是** mtime —— 改过帧内容但文件名没变时它不会重渲。原文口径已作废。
+- `SKILL.md` 工具表与 `references/lessons.md` #132 同步。
+
+### 顺带记录（未改代码）
+
+- **路径 A 的续跑手段不止 `--resume`**：只差尾部几场时用 `--only <剩余场次,逗号列表>`。
+  它逐帧写的也是全局帧号，前面已渲的场次完全保住。**前提是必须一路覆盖到末场**，
+  否则中间会留下过期帧 —— 合成前的帧完整性闸门会拦下，并把这条命令直接打给你。
+- **路径 A 的精细 PNG 只在单并发下稳定**：同一片子 `--concurrency 1` 正常（3.36 帧/秒），
+  `--concurrency 2` 实测在启动阶段停滞（0 帧产出）。
+
+---
+
 ## [2.0.5] — 2026-10-05
 
 > **渲染通道的默认推荐由 `jpeg q95` 改回 `png-fast`。** 原口径的依据是「JPEG q95 快 13×」，
@@ -844,6 +890,11 @@
 - 23 种画面风格目录，8 个类别，按改编成本分类。
 - `setup_env.sh` 做首次环境自检，`--install` 装缺失依赖；`package_skill.py` 打可移植 zip。
 
+[2.0.6]: https://github.com/OneMoh/html-explainer/releases/tag/v2.0.6
+[2.0.5]: https://github.com/OneMoh/html-explainer/releases/tag/v2.0.5
+[2.0.4]: https://github.com/OneMoh/html-explainer/releases/tag/v2.0.4
+[2.0.3]: https://github.com/OneMoh/html-explainer/releases/tag/v2.0.3
+[2.0.2]: https://github.com/OneMoh/html-explainer/releases/tag/v2.0.2
 [2.0.1]: https://github.com/OneMoh/html-explainer/releases/tag/v2.0.1
 [2.0.0]: https://github.com/OneMoh/html-explainer/releases/tag/v2.0.0
 [1.4.3]: https://github.com/OneMoh/html-explainer/releases/tag/v1.4.3

@@ -710,7 +710,6 @@ async function main() {
 
   // ---------- 路径 A：1.4.x 行为（单浏览器 + 场景级并发 + 无快门） ----------
   async function renderLegacy() {
-    const browser = await chromium.launch(launchOpts);
     const only = args.only && args.only.length ? args.only : null;
     if (only) {
       const unknown = only.filter((id) => !scenes.some((s) => s.id === id));
@@ -720,18 +719,49 @@ async function main() {
     }
     const queue = only ? scenes.filter((s) => only.includes(s.id)) : [...scenes];
     if (only) log(`--only：只渲 ${only.join(', ')}，跳过其余 ${scenes.length - new Set(only).size} 个场景`);
-    const conc = Math.max(1, Math.min(args.concurrency || prof.concurrency || 3, queue.length));
+
+    // ★ 路径 A 也必须支持 --resume。原实现只在路径 B 有（见 renderParallel 的 pendingFrames），
+    //   本路径加了 `--resume` 既不报错也不跳帧 —— 又一个**参数静默失效**（与 `--workers` 在
+    //   本路径无效同族）。而看门狗挂死的提示偏偏就叫用户「加 --resume 可直接接着跑」，
+    //   等于把人骗进第二次白跑。本路径的帧按**全局帧号**写盘（shotOne 内部用 sc.gf + i + 1），
+    //   所以判据就是「同名帧在不在盘上」。整场都在盘上时连页面都不用加载。
+    const plan = [];
+    let skipped = 0;
+    for (const sc of queue) {
+      const idx = [];
+      for (let i = 0; i < sc.n; i++) {
+        const n = sc.gf + i + 1;
+        if (args.resume && fs.existsSync(path.join(framesDir, frameName(n, ext)))) skipped++;
+        else idx.push(i);
+      }
+      if (idx.length) plan.push({ sc, idx });
+    }
+    if (args.resume) {
+      const todo = plan.reduce((a, p) => a + p.idx.length, 0);
+      log(`--resume：${skipped} 帧已在盘上（${queue.length - plan.length} 个整场跳过），补渲 ${todo} 帧`);
+      if (!plan.length) { log('--resume：没有待渲帧，跳过截图直接进入合成'); return; }
+    }
+
+    const browser = await chromium.launch(launchOpts);
+    const conc = Math.max(1, Math.min(args.concurrency || prof.concurrency || 3, plan.length));
     const workersN = Array.from({ length: conc }, () => (async () => {
-      while (queue.length && !errors.length) {
-        const sc = queue.shift();
+      while (plan.length && !errors.length) {
+        const { sc, idx } = plan.shift();
         let ctx = null;
         try {
           ctx = await withTimeout(setupPage(browser, sc.id), SHOT_TIMEOUT_MS, `加载场景 ${sc.id}`);
-          for (let i = 0; i < sc.n; i++) {
+          for (const i of idx) {
             await withTimeout(shotOne(ctx, sc, i), SHOT_TIMEOUT_MS, `截 ${sc.id} 第 ${i + 1} 帧`);
+            // ★ 每帧打点：看门狗的"最后活动时刻"必须按**帧**推进，不能只按**场**。
+            //   本路径的 doneFrames 只在整场渲完才累加（下面一行），若不在这里 poke，
+            //   看门狗量到的就是"单场耗时"——WATCHDOG_MS 默认 105s 于是变成
+            //   「单场超过 105 秒即判挂死」。实测 1080p 精细 PNG 约 3.5 帧/秒，
+            //   12.8s 的场 ≈ 110s → 必然误杀，且进程 exit(3) 丢掉的正是那一场的后半段。
+            //   （并行路径早在 827/829/868 行就有 poke，本条是路径 A 的对称补齐。）
+            pokeWatchdog();
           }
-          doneFrames += sc.n;
-          log(`✓ 场景 ${sc.id}：${sc.n} 帧`);
+          doneFrames += idx.length;
+          log(`✓ 场景 ${sc.id}：${idx.length} 帧${args.resume ? '（续跑）' : ''}`);
         } catch (e) {
           errors.push(`场景 ${sc.id}: ${e.message}`);
         } finally {
@@ -954,8 +984,15 @@ async function main() {
       if (idle * 1000 > WATCHDOG_MS) {
         clearInterval(watchdog);
         process.stderr.write(`[render] ✗ 渲染停滞：${fmt(idle, 0)}s 内无新帧（已完成 ${doneFrames} 帧，重试 ${retries} 次）。\n`);
-        process.stderr.write('[render]   多半是某个 Chrome 进程挂死。对策：调小 HX_SHOT_TIMEOUT_MS、或 --workers 降并发后重跑；\n');
-        process.stderr.write('[render]   盘上已有的帧不会丢 —— 加 --resume 可直接接着跑。\n');
+        if (useWorkers) {
+          process.stderr.write('[render]   多半是某个 Chrome 进程挂死。对策：调小 HX_SHOT_TIMEOUT_MS、或 --workers 降并发后重跑；\n');
+          process.stderr.write('[render]   盘上已有的帧不会丢 —— 加 --resume 可直接接着跑。\n');
+        } else {
+          process.stderr.write('[render]   路径 A（精细 PNG 单浏览器）比并行慢得多，单场越长越容易撞上停滞窗口 —— 先看是不是误杀。\n');
+          process.stderr.write('[render]   对策：① 调大 HX_SHOT_TIMEOUT_MS（看门狗 = 它 + 45s）；\n');
+          process.stderr.write('[render]         ② 盘上已有的帧不会丢 —— 加 --resume 接着跑；\n');
+          process.stderr.write(`[render]         ③ 只差尾部几场时：--only <剩余场次逗号列表>（帧按全局帧号写盘，已渲的可保住）。\n`);
+        }
         process.exit(3);
       }
     }, 3000);

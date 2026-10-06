@@ -11,7 +11,7 @@ Scenes are written with a seekable motion library, styles are picked by a theme-
 orchestrator, and rendering supports 4K60, shutter-based motion blur and multi-process parallelism.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.5-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.6-blue.svg)](CHANGELOG.md)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-SKILL.md-8A2BE2.svg)](SKILL.md)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%9C%93-D97757.svg)](#install)
 [![Codex](https://img.shields.io/badge/Codex-%E2%9C%93-000000.svg)](#install)

@@ -9,7 +9,7 @@ HTML 写画面 → 确定性逐帧渲染 → 真 MP4。全本地跑，核心链�
 画面用一套可 seek 的动效库写，风格由主题驱动编排，渲染支持 4K60、快门运动模糊与多进程并行。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.5-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.6-blue.svg)](CHANGELOG.md)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-SKILL.md-8A2BE2.svg)](SKILL.md)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%9C%93-D97757.svg)](#安装)
 [![Codex](https://img.shields.io/badge/Codex-%E2%9C%93-000000.svg)](#安装)
