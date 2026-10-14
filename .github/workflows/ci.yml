@@ -69,6 +69,12 @@ jobs:
       - name: Beats matcher regression test
         run: node tests/test_beats_norm.mjs
 
+      # --- frontmatter description 的长度上限 ---
+      # 超长时本地一切正常，只有换到按 1024 字符扫描的加载器才会「整个技能消失」，
+      # 且不报错。这类缺陷在本地不可观测，只能在构建期钉住（issue #3）。
+      - name: Skill frontmatter regression test
+        run: python tests/test_skill_frontmatter.py
+
       # --- 渲染器 / 封面器 / 单帧速览工具的语法 ---
       - name: Check Node module syntax
         shell: bash

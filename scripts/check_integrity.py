@@ -17,6 +17,9 @@ check_integrity.py —— 仓库自洽性检查（CI 与本地都能跑，零第
   6. 密钥防线：.gitignore 必须忽略 tts.env / *.env / *.key，且仓库内不得出现
      真实的火山引擎密钥（非空赋值 / AKLT 形态 token）
      —— 火山 TTS 是本技能唯一需要密钥的功能，泄露即永久失守。
+  7. SKILL.md frontmatter 的 description 不得超过加载器的 1024 字符上限
+     —— 超限时部分加载器（Claude Code / ZCode 等）**静默丢弃整个 skill**：
+     不报错、列表里没有、也永远触发不了。本地完全看不出来，见 issue #3。
 
 用法：
   python scripts/check_integrity.py            # 以脚本所在技能的根目录为准
@@ -36,6 +39,13 @@ BAD = "  \u2717"
 
 # 外链资源（离线渲染禁止）
 REMOTE = re.compile(r"""(?:<link[^>]+href|@import\s+url\(|<script[^>]+src)\s*=?\s*["'(]?https?://""", re.I)
+
+# frontmatter description 的硬上限：Claude Code / ZCode 等加载器都按 1024 字符卡严。
+# 超限时它们的做法是**静默丢弃整个 skill**（不是截断、不报错）：技能列表里查无此项，
+# 也永远触发不了 —— 在本地怎么测都看不出来。详见 issue #3。
+DESC_LIMIT = 1024
+# 建议上限：description 是「什么时候该用我」的一句话索引，不是第二份功能清单。
+DESC_ADVISE = 700
 
 
 def read(path: str) -> str:
@@ -70,6 +80,53 @@ def check_version(root: str, fails: list[str]) -> None:
         fails.append(
             f"version: SKILL.md 是 {skill_ver}，CHANGELOG.md 最新是 {log_ver} —— 发布前必须同步"
         )
+
+
+def check_description_length(root: str, fails: list[str]) -> None:
+    """SKILL.md frontmatter 的 description 必须在加载器上限以内（issue #3）。
+
+    这条检查的价值全在「本地不可观测」上：description 太长时技能照常能跑、
+    单元测试全绿、CI 全绿 —— 只有换到按 1024 字符规则扫描的加载器里，
+    整个技能才会消失，而且不报任何错。所以只能靠构建期把它钉住。
+    """
+    skill = os.path.join(root, "SKILL.md")
+    if not os.path.isfile(skill):
+        return
+    text = read(skill)
+    m = re.match(r"^---\r?\n(.*?)\r?\n---\r?\n", text, re.S)
+    if not m:
+        fails.append("skillmd: SKILL.md 没有合法的 frontmatter（应为 --- 开头的一段 YAML）")
+        return
+    fm = m.group(1)
+    dm = re.search(r"^description:[ \t]*(.*)$", fm, re.M)
+    if not dm:
+        fails.append("skillmd: frontmatter 缺 description 字段"
+                     " —— 加载器靠它判断何时触发，缺了等于技能不可被发现")
+        return
+
+    desc = dm.group(1).strip()
+    n = len(desc)
+    nb = len(desc.encode("utf-8"))
+
+    # YAML 平面标量的两个坑：`a: b` 里的冒号会被解析成新键；以引号开头会变成另一种标量。
+    if ": " in desc:
+        fails.append("skillmd: description 里有 ASCII 的「冒号+空格」"
+                     " —— 会让 YAML 把它切成新字段（全角「：」不受影响）")
+
+    if n > DESC_LIMIT:
+        fails.append(
+            f"skillmd: description 有 {n} 字符（{nb} 字节），超过 {DESC_LIMIT} 字符上限 —— "
+            f"部分加载器会**静默丢弃整个 skill**（列表里没有、也触发不了）。"
+            f"把风格目录 / 版本能力 / 渲染档位等细节移进 SKILL.md 正文，"
+            f"只留「触发场景」的措辞，并把触发词放在最前面"
+        )
+        return
+
+    if n > DESC_ADVISE:
+        print(f"{OK} skillmd: description {n} 字符（{nb} 字节）—— 未超 {DESC_LIMIT}，"
+              f"但超过建议值 {DESC_ADVISE}，可再精简")
+    else:
+        print(f"{OK} skillmd: description {n} 字符（{nb} 字节），在 {DESC_LIMIT} 上限内")
 
 
 def check_catalog(root: str, fails: list[str]) -> int | None:
@@ -242,6 +299,7 @@ def main() -> int:
 
     fails: list[str] = []
     check_version(root, fails)
+    check_description_length(root, fails)
     count = check_catalog(root, fails)
     check_catalog_count(root, count, fails)
     check_no_remote_assets(root, fails)
