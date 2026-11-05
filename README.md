@@ -9,7 +9,7 @@ HTML 写画面 → 确定性逐帧渲染 → 真 MP4。全本地跑，核心链�
 画面用一套可 seek 的动效库写，风格由主题驱动编排，渲染支持 4K60、快门运动模糊与多进程并行。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.7-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.8-blue.svg)](CHANGELOG.md)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-SKILL.md-8A2BE2.svg)](SKILL.md)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%9C%93-D97757.svg)](#安装)
 [![Codex](https://img.shields.io/badge/Codex-%E2%9C%93-000000.svg)](#安装)
@@ -79,6 +79,13 @@ bash ~/.workbuddy/skills/html-explainer/setup_env.sh --install
 ```
 
 Windows 上 `~` 就是 `C:\Users\<你的用户名>`。
+
+> **Windows 注意**：上面的 `bash` 指 **Git Bash**（装了 Git for Windows 就有），PowerShell / cmd
+> 里直接跑 `bash setup_env.sh --install` 会找不到命令 —— 用 `& "C:\Program Files\Git\bin\bash.exe" setup_env.sh --install`，
+> 或先开一个 Git Bash 窗口。
+> 另外，不少宿主会在技能目录名后加命名空间后缀（例如 WorkBuddy 装出来的是
+> `~/.workbuddy/skills/html-explainer__skillhub`），照实际目录改路径即可，技能本身不认名字。
+> 项目路径请保持**全 ASCII** —— Windows 的 ffmpeg 把 UTF-8 当 ANSI 读，中文路径会在渲染阶段炸。
 
 ### 各智能体的技能目录
 
@@ -232,7 +239,7 @@ CSS `transition` 入场）不可能工作，会被 `lint_frames.py` 直接拒绝
 | **快门运动模糊** | `--shutter 180` 在**线性光下做多样本积分**（不是 blur 滤镜）；静帧只截两张就跳过。三级闸门（`--shutter-only` / `--motion-hold`）避免把成本花在静态帧上。 |
 | **多进程并行 + 断点续渲** | `--workers N` 起 N 个独立浏览器进程（截图是 CPU 活，能拉满多核）；`--resume` 跳过已积分的帧；`--recycle N` 长片定期重启浏览器防 OOM。 |
 | **渲染通道由用户拍板** | 渲染前**必须**先问你选哪条中间帧通道（`png-fast`（★默认推荐）/ `jpeg q95` / `png` / `jpeg q82`），落进 `consent.json`，由 `gate_check.py --phase render` 挡在渲染之前。 |
-| **渲染前体检 + QC** | `lint_frames.py` 在渲染前报出契约违规；`qc_check.py` 查响度、时长漂移、抽帧速览。 |
+| **渲染前三道体检 + QC** | `check_beats_refs.py` 校验画面里每个 `B()`/`Be()` 都能解析（失配秒级报出可用块）；`lint_frames.py` 报出八条契约违规；`check_layout.mjs` 量几何（越界 / 侵入字幕带 / 元素互相遮挡 —— 这三类 `lint` 看不见）；`qc_check.py` 查响度、时长漂移、抽帧速览。 |
 | **结构性离线** | GSAP 内置；浏览器自动探测；ffmpeg 缺失时回退到 `imageio-ffmpeg` 静态二进制；网络字体被契约禁止。 |
 
 ---
@@ -247,11 +254,13 @@ flowchart LR
     S --> D["tts_build.py<br/><i>edge-tts / 火山引擎 → MP3 + 词边界</i>"]
     D --> E["timeline_build.py<br/><i>全局轴 + 拼接音轨</i>"]
     E --> F["subs.py<br/><i>subs.json · srt/vtt · beats.js</i>"]
-    F --> SD["style_director.py<br/><i>读解说词挑风格 → style-plan.json</i>"]
+    F --> CB["check_beats_refs.py<br/><i>B()/Be() 能否解析</i>"]
+    CB --> SD["style_director.py<br/><i>读解说词挑风格 → style-plan.json</i>"]
     SD --> G["frames/*.html<br/><i>一句一场景 · 动效库 HXM</i>"]
     G --> H{"lint_frames.py<br/>八条契约"}
     H -->|不过| G
-    H -->|通过| GC{"gate_check.py<br/>通道已由用户拍板？"}
+    H -->|通过| CL["check_layout.mjs<br/><i>几何：越界 · 侵入字幕带 · 遮挡</i>"]
+    CL --> GC{"gate_check.py<br/>通道已由用户拍板？"}
     GC -->|未定| Q["问用户选通道"]
     Q --> GC
     GC -->|已定| I["render_video.mjs<br/><i>逐帧 seek → png-fast / jpeg</i>"]
@@ -263,8 +272,10 @@ flowchart LR
 
     style K fill:#1f6feb,color:#fff
     style H fill:#8957e5,color:#fff
+    style CL fill:#8957e5,color:#fff
     style GC fill:#8957e5,color:#fff
     style SD fill:#bf8700,color:#fff
+    style CB fill:#6e7781,color:#fff
     style M fill:#238636,color:#fff
     style N fill:#238636,color:#fff
 ```
@@ -476,7 +487,7 @@ node scripts/check_cover.mjs .          # 边距 / 钩子字号 / 行宽 / 孤�
 | 火山报 `网络不可达` | 本包默认**绕过系统代理直连**（境内端点） | 确实需要代理时设 `VOLC_PROXY=http://127.0.0.1:<port>` |
 | 重跑后字幕整体晚一帧 | 命中缓存时丢掉了首裁量（历史 bug，已修） | 升级到 v1.3.0+；缓存格式已带 `lead_cut_sec` |
 
-**`references/lessons.md` 是这个仓库里最值钱的文件。** 130 条编号记录，每一条都是一个
+**`references/lessons.md` 是这个仓库里最值钱的文件。** 133 条编号记录，每一条都是一个
 「成片看着挺正常、其实是错的」的 bug —— 包括它一开始是怎么被误判的。从零开始 debug 之前，
 先读它。
 

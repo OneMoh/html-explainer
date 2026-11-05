@@ -11,7 +11,7 @@ Scenes are written with a seekable motion library, styles are picked by a theme-
 orchestrator, and rendering supports 4K60, shutter-based motion blur and multi-process parallelism.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.7-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.8-blue.svg)](CHANGELOG.md)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-SKILL.md-8A2BE2.svg)](SKILL.md)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%9C%93-D97757.svg)](#install)
 [![Codex](https://img.shields.io/badge/Codex-%E2%9C%93-000000.svg)](#install)
@@ -87,6 +87,15 @@ bash ~/.workbuddy/skills/html-explainer/setup_env.sh --install
 ```
 
 On Windows `~` is `C:\Users\<you>`.
+
+> **Windows note**: `bash` above means **Git Bash** (ships with Git for Windows). Running
+> `bash setup_env.sh --install` from PowerShell or cmd will fail — use
+> `& "C:\Program Files\Git\bin\bash.exe" setup_env.sh --install`, or open a Git Bash window.
+> Some hosts also append a namespace suffix to the skill directory (WorkBuddy, for example,
+> installs to `~/.workbuddy/skills/html-explainer__skillhub`) — just use whatever directory you
+> actually have; the skill does not care about its own name.
+> Keep **project paths ASCII** — Windows ffmpeg reads UTF-8 as ANSI and non-ASCII paths break
+> the render stage.
 
 ### Skills directory by agent
 
@@ -255,7 +264,7 @@ function is seekable by construction.
 | **Shutter-based motion blur** | `--shutter 180` integrates multiple samples **in linear light** (not a blur filter); still frames stop after two captures. Three-level gating (`--shutter-only` / `--motion-hold`) keeps the cost off static frames. |
 | **Multi-process + resumable renders** | `--workers N` spawns N independent browser processes (capture is CPU work, so it scales with cores); `--resume` skips already-integrated frames; `--recycle N` restarts the browser periodically to avoid OOM on long 4K jobs. |
 | **The render channel is your call** | Before rendering it **must** ask which intermediate-frame channel you want — `png-fast` (★default) / `jpeg q95` / `png` / `jpeg q82` — recorded in `consent.json` and gated by `gate_check.py --phase render`. |
-| **Pre-render audit + QC** | `lint_frames.py` reports contract violations before you spend render time; `qc_check.py` checks loudness, drift and samples frames. |
+| **Pre-render audit + QC** | `check_beats_refs.py` proves every `B()`/`Be()` resolves (a mismatch lists the available blocks in a second); `lint_frames.py` reports contract violations; `check_layout.mjs` measures geometry (overflow / subtitle-band intrusion / overlapping elements — the three things `lint` cannot see); `qc_check.py` checks loudness, drift and samples frames. |
 | **Structurally offline** | GSAP vendored; browser auto-detected; ffmpeg falls back to the `imageio-ffmpeg` static binary; web fonts are banned by contract. |
 
 ---
@@ -270,11 +279,13 @@ flowchart LR
     S --> D["tts_build.py<br/><i>edge-tts / Volcano to MP3 + word boundaries</i>"]
     D --> E["timeline_build.py<br/><i>global axis + stitched track</i>"]
     E --> F["subs.py<br/><i>subs.json, srt/vtt, beats.js</i>"]
-    F --> SD["style_director.py<br/><i>reads script, picks styles → style-plan.json</i>"]
+    F --> CB["check_beats_refs.py<br/><i>does every B()/Be() resolve?</i>"]
+    CB --> SD["style_director.py<br/><i>reads script, picks styles → style-plan.json</i>"]
     SD --> G["frames/*.html<br/><i>one scene per line · motion library HXM</i>"]
     G --> H{"lint_frames.py<br/>eight contract rules"}
     H -->|fail| G
-    H -->|pass| GC{"gate_check.py<br/>channel decided by the user?"}
+    H -->|pass| CL["check_layout.mjs<br/><i>geometry: overflow · subtitle band · overlap</i>"]
+    CL --> GC{"gate_check.py<br/>channel decided by the user?"}
     GC -->|not yet| Q["ask the user"]
     Q --> GC
     GC -->|decided| I["render_video.mjs<br/><i>seek per frame → png-fast / jpeg</i>"]
@@ -286,8 +297,10 @@ flowchart LR
 
     style K fill:#1f6feb,color:#fff
     style H fill:#8957e5,color:#fff
+    style CL fill:#8957e5,color:#fff
     style GC fill:#8957e5,color:#fff
     style SD fill:#bf8700,color:#fff
+    style CB fill:#6e7781,color:#fff
     style M fill:#238636,color:#fff
     style N fill:#238636,color:#fff
 ```
@@ -524,7 +537,7 @@ Full rules and the pre-upload checklist: [`references/cover-guide.md`](reference
 | Volcano `network unreachable` | The package **bypasses the system proxy by default** (China-mainland endpoint) | If you really need a proxy, set `VOLC_PROXY=http://127.0.0.1:<port>` |
 | Subtitles sit one frame late after a re-run | A cache hit dropped the head-trim amount (historical bug, fixed) | Upgrade to v1.3.0+; the cache format now carries `lead_cut_sec` |
 
-**`references/lessons.md` is the most valuable file in this repository.** 130 numbered entries, each
+**`references/lessons.md` is the most valuable file in this repository.** 133 numbered entries, each
 one a bug where "the video looked fine but was wrong" — including how it was misdiagnosed at first.
 Read it before debugging from scratch.
 
