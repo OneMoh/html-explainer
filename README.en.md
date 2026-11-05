@@ -4,14 +4,12 @@
 
 **An Agent Skill: give it any topic, get back a narrated explainer video with burned-in subtitles and covers.**
 
-**No video-generation model required.** The visuals are HTML/CSS written by the agent. The motion
-library is a pure function `t → numbers`, so it can be **seeked** to any instant; the renderer
-positions the timeline, screenshots and encodes — a **deterministic, real MP4**, not a screen
-recording, where the same frame always looks the same. Styles are **orchestrated from the topic**;
-rendering supports **4K60 · 180° shutter motion blur · multi-process parallelism**.
+**No video-generation model required.** The visuals are HTML/CSS written by the agent, rendered
+frame by frame into a **real MP4** (not a screen recording): the motion library is a pure function
+`t → numbers` that can be seeked anywhere; styles are orchestrated from the topic; rendering
+supports **4K60 · 180° shutter motion blur · multi-process parallelism**.
 
-**Fully local: zero API keys and zero per-render fees on the core path.** Any ordinary large
-language model is enough — no Sora, no Kling, no per-second video API.
+**Fully local: zero API keys and zero per-render fees on the core path.**
 
 A **2-minute video takes about 30 minutes end to end at the fastest setting** (research → script →
 voiceover and subtitles → scene authoring → render → covers).
