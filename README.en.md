@@ -4,15 +4,20 @@
 
 **An Agent Skill: give it any topic, get back a narrated explainer video with burned-in subtitles and covers.**
 
-**No video-generation model required.** The visuals are HTML/CSS written by the agent and rendered
-frame by frame in a real browser into a real MP4 — any ordinary large language model is enough.
-No Sora, no Kling, no per-second video API.
+**No video-generation model required.** The visuals are HTML/CSS written by the agent. The motion
+library is a pure function `t → numbers`, so it can be **seeked** to any instant; the renderer
+positions the timeline, screenshots and encodes — a **deterministic, real MP4**, not a screen
+recording, where the same frame always looks the same. Styles are **orchestrated from the topic**;
+rendering supports **4K60 · 180° shutter motion blur · multi-process parallelism**.
+
+**Fully local: zero API keys and zero per-render fees on the core path.** Any ordinary large
+language model is enough — no Sora, no Kling, no per-second video API.
 
 A **2-minute video takes about 30 minutes end to end at the fastest setting** (research → script →
 voiceover and subtitles → scene authoring → render → covers).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.8-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.9-blue.svg)](CHANGELOG.md)
 [![Stars](https://img.shields.io/github/stars/OneMoh/html-explainer?style=flat&logo=github)](https://github.com/OneMoh/html-explainer/stargazers)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-SKILL.md-8A2BE2.svg)](SKILL.md)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%9C%93-D97757.svg)](#install)
@@ -57,8 +62,7 @@ The skill then walks the agent through: research → script → voiceover → su
 **How this differs from a text-to-video model:** that route asks a model to generate pixels, and you
 pay for it in compute, per-render fees, and text that never reproduces (Chinese on screen is usually
 mush). Here the model **writes code** and the browser draws the pixels — so text is always crisp,
-the same frame always looks the same, and the core path runs locally with zero API keys and zero
-per-render fees.
+the same frame always looks the same, and every frame is a readable file you can edit and diff.
 
 ## Where the 30 minutes go
 

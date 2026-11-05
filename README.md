@@ -4,13 +4,17 @@
 
 **一个 Agent Skill：给任意主题，产出一条带配音、硬字幕、封面的讲解视频。**
 
-**不需要视频生成模型。** 画面是 agent 现写的 HTML/CSS，由浏览器逐帧渲染成真 MP4 ——
-你手上那个普通的大语言模型就够用，不用 Sora、不用可灵、不用按秒计费的视频 API。
+**不需要视频生成模型。** 画面是 agent 现写的 HTML/CSS —— 动效库是 `t → 一组数字` 的纯函数，
+所以能被任意 **seek**；渲染器把时间轴逐帧定位、截图、编码，产出**确定性的真 MP4**（不是录屏，
+同一帧永远长一样）。风格由**主题驱动自动编排**；渲染支持 **4K60 · 180° 快门运动模糊 · 多进程并行**。
+
+**全本地跑，核心链路零 API key、零按次计费。** 你手上那个普通的大语言模型就够用 ——
+不用 Sora、不用可灵、不用按秒计费的视频 API。
 
 一条 **2 分钟的片子，全流程最快约 30 分钟**（调研 → 解说词 → 配音字幕 → 写画面 → 渲染 → 封面）。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.8-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.9-blue.svg)](CHANGELOG.md)
 [![Stars](https://img.shields.io/github/stars/OneMoh/html-explainer?style=flat&logo=github)](https://github.com/OneMoh/html-explainer/stargazers)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-SKILL.md-8A2BE2.svg)](SKILL.md)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%9C%93-D97757.svg)](#安装)
@@ -52,7 +56,7 @@ WorkBuddy / Cursor / Gemini CLI 等都能直接加载。内部是普通的 Pytho
 
 **与「文生视频」模型的区别**：那条路线要模型把画面像素生成出来，代价是算力、按次计费、
 以及不可复现的文字（画面上的中文经常是糊的）。这里要模型**写代码**，像素由浏览器画 ——
-所以文字永远清晰、同一帧永远长一样、核心链路零 API key、零按次计费，全在本机跑。
+所以文字永远清晰、同一帧永远长一样，画面是一份可读的文件，能改也能 diff。
 
 ## 30 分钟是怎么来的
 

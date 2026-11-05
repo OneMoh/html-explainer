@@ -1,6 +1,6 @@
 ---
 name: html-explainer
-version: 2.0.8
+version: 2.0.9
 description: 把任意主题做成讲解/科普视频并渲染成 MP4（HTML/CSS/GSAP 画面 + 确定性逐帧渲染 + 配音 + 词级硬字幕）。触发场景：要做科普/讲解/教学/知识/产品类视频、「讲一下 X 做成视频」、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面/9:16 封面、要用 html-video 那种模板化画面但更稳的音画同步、anything2explainer 换 HTML 渲染，或提到 html-explainer / HTML 讲解视频 / explainer video / MG 视频。内置 23 个模板风格（8 类）与 40+ 动作词汇的动效库，主题驱动模板编排；支持 4K60、快门运动模糊、多进程提速、断点续渲；流程含六个用户确认点（渲染通道是硬闸门）。独立可移植，不依赖 html-video / anything2explainer。
 agent_created: true
 ---
