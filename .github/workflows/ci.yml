@@ -26,7 +26,7 @@ jobs:
       matrix:
         # Windows + Git Bash 是主要开发平台，所以和 Linux 一起测，
         # 而不是被当成事后补的。
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-24.04, windows-latest]
         python: ["3.9", "3.13"]
 
     steps:
