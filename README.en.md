@@ -15,7 +15,7 @@ A **2-minute video takes about 30 minutes end to end at the fastest setting** (r
 voiceover and subtitles → scene authoring → render → covers).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.9-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.10-blue.svg)](CHANGELOG.md)
 [![Stars](https://img.shields.io/github/stars/OneMoh/html-explainer?style=flat&logo=github)](https://github.com/OneMoh/html-explainer/stargazers)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-SKILL.md-8A2BE2.svg)](SKILL.md)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%9C%93-D97757.svg)](#install)
@@ -137,7 +137,7 @@ exception and only reads `.claude/skills/`.)
 
 | Item | Minimum | Notes |
 |---|---|---|
-| Python | 3.9+ | `edge-tts==7.2.8` (pinned deliberately — v7 changed the boundary API), `numpy`, `pillow`, `imageio-ffmpeg`. **The Volcano engine needs nothing extra** (stdlib `urllib` only, no SDK) |
+| Python | 3.9+ | `edge-tts==7.3.1` (pinned deliberately — 7.2.8 handshakes are rejected with 403 by Microsoft), `numpy`, `pillow`, `imageio-ffmpeg`. **The Volcano engine needs nothing extra** (stdlib `urllib` only, no SDK) |
 | Node.js | 18+ | Used by the renderer and the cover builder |
 | Browser | Chrome or Edge | Auto-detected; playwright chromium (~115MB, one time) only if neither exists |
 | ffmpeg | any version | Looked up on `PATH`; falls back to the static binary bundled with `imageio-ffmpeg` |
@@ -221,7 +221,7 @@ The agent will not choose these for you — the choices are written to `consent.
 | What you do | nothing | paste an API Key once |
 | Cost | free | billed per character |
 | Voices | a set of built-in zh/en voices | Doubao 2.0 voice library, incl. voice cloning |
-| Extra deps | `edge-tts==7.2.8`, `imageio-ffmpeg` | **none** — stdlib `urllib` only |
+| Extra deps | `edge-tts==7.3.1`, `imageio-ffmpeg` | **none** — stdlib `urllib` only |
 | When to pick it | default; works out of the box | when you want more natural prosody / better quality |
 
 With Volcano, the skill **creates a `tts.env` and stops** so you can paste the key into it — that
@@ -284,6 +284,8 @@ my-video/
 | Cover renders at 1× | Same trap, `deviceScaleFactor` twin | Pass to `newPage()` + `screenshot({ scale: 'device' })` |
 | Numbers render but never move | The seek suppressed `onUpdate` callbacks | Renderer fixed (`pause(t, false)`); use a transform-based number reel in scenes |
 | ffmpeg dies on the first frame under `--jpeg` (`unsupported coding type`) | "Hold" frames were written as a `.jpg` name holding PNG bytes (PIL sniffs by content and reads them; ffmpeg decodes by extension and crashes) | Upgrade to v2.0.4 or later, where this is fixed |
+| Log printed `Browser: …` but launch still says `Executable doesn't exist at …ms-playwright…` | Up to v2.0.9 the detected system browser was logged but never passed to `chromium.launch()` | Upgrade to v2.0.10 (wires `executablePath`); meanwhile use `--browser <path>` or `BROWSER_PATH` |
+| TTS fails with `WSServerHandshakeError: 403 Forbidden` (Microsoft endpoint) | edge-tts 7.2.8 handshakes are rejected by Microsoft — not a network problem | Upgrade to v2.0.10 and run `bash setup_env.sh --install` (pin is now 7.3.1), or `pip install -U edge-tts==7.3.1` |
 | `No such file or directory` on Windows | Non-ASCII path — Windows ffmpeg reads UTF-8 as ANSI | Keep paths ASCII |
 | Subtitles drift / land in the wrong place | TTS returned no word timestamps, so `subs.py` fell back to **character-count interpolation** (a single stderr warning) | Check whether `tts_build` printed `⚠ no word timestamps`; switch to a supported voice (zh/en Doubao 2.0) |
 | Volcano error `resource ID is mismatched with speaker related resource` | `speaker` got a display name instead of a voice ID; or a cloned voice paired with the preset resource ID | Use a built-in voice name/ID (the package resolves it); for cloned voices set `VOLC_RESOURCE_ID=seed-icl-2.0` |

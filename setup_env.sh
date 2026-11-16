@@ -7,7 +7,7 @@
 #   bash setup_env.sh --install  # 自检 + 联网安装缺的依赖
 #
 # 依赖清单：
-#   Python ≥3.9 + edge-tts(7.2.8 钉死) numpy pillow imageio-ffmpeg
+#   Python ≥3.9 + edge-tts(7.3.1 钉死；7.2.8 握手已被微软 403) numpy pillow imageio-ffmpeg
 #   Node ≥18（渲染器 .mjs）
 #   playwright-core（装在技能 node/ 下，纯 JS，可随技能打包带走）
 #   浏览器：Chrome 或 Edge（几乎必有）；都没有才下载 playwright chromium
@@ -41,21 +41,27 @@ if [ -z "$PY" ]; then
   miss "找不到 Python ≥3.9"
 else
   ok "Python: $PY ($("$PY" -V 2>&1))"
-  if ! "$PY" -c "import edge_tts, numpy, PIL, imageio_ffmpeg" >/dev/null 2>&1; then
+  # edge-tts 7.2.8 的握手已被微软端点 403 拒绝；7.3.1 实测正常且词级时间戳兼容。
+  # 自检也认版本 —— 只判断「import 得到」会让装了旧版的用户全绿后第一步就卡死。
+  EDGE_TTS_PIN="7.3.1"
+  py_deps_ok() {
+    "$PY" -c 'import edge_tts, numpy, PIL, imageio_ffmpeg, importlib.metadata as m, sys; v=tuple(int(x) for x in m.version("edge-tts").split(".")[:3] if x.isdigit()); sys.exit(0 if v >= (7, 3, 1) else 1)' >/dev/null 2>&1
+  }
+  if ! py_deps_ok; then
     if [ $INSTALL -eq 1 ]; then
-      info "pip 安装 Python 依赖（钉死 edge-tts==7.2.8：7.x 升级常有破坏性）…"
-      "$PY" -m pip install --user "edge-tts==7.2.8" numpy pillow imageio-ffmpeg >/dev/null 2>&1 \
-        || "$PY" -m pip install "edge-tts==7.2.8" numpy pillow imageio-ffmpeg >/dev/null 2>&1 \
+      info "pip 安装 Python 依赖（edge-tts==$EDGE_TTS_PIN：旧版握手被微软 403）…"
+      "$PY" -m pip install --user "edge-tts==$EDGE_TTS_PIN" numpy pillow imageio-ffmpeg >/dev/null 2>&1 \
+        || "$PY" -m pip install "edge-tts==$EDGE_TTS_PIN" numpy pillow imageio-ffmpeg >/dev/null 2>&1 \
         || warn "pip 安装失败，请手动装"
     fi
     # 装完再判定
-    if "$PY" -c "import edge_tts, numpy, PIL, imageio_ffmpeg" >/dev/null 2>&1; then
-      ok "Python 依赖齐全（edge-tts / numpy / pillow / imageio-ffmpeg）"
+    if py_deps_ok; then
+      ok "Python 依赖齐全（edge-tts ≥7.3.1 / numpy / pillow / imageio-ffmpeg）"
     else
-      miss "Python 依赖缺（edge-tts numpy pillow imageio-ffmpeg）"
+      miss "Python 依赖缺或 edge-tts 版本过低（需 ≥7.3.1：旧版握手被微软 403）"
     fi
   else
-    ok "Python 依赖齐全（edge-tts / numpy / pillow / imageio-ffmpeg）"
+    ok "Python 依赖齐全（edge-tts ≥7.3.1 / numpy / pillow / imageio-ffmpeg）"
   fi
 fi
 
@@ -105,13 +111,16 @@ for p in "/c/Program Files/Google/Chrome/Application/chrome.exe" \
          "/usr/bin/google-chrome" "/usr/bin/chromium" "/usr/bin/chromium-browser"; do
   [ -f "$p" ] && BROWSER="$p" && break
 done
+PW_CHROMIUM=""
+if [ -z "$BROWSER" ] && [ -d "$SKILL_ROOT/node/node_modules/playwright-core" ] && command -v node >/dev/null 2>&1; then
+  PW_CHROMIUM="$(cd "$SKILL_ROOT/node" && node -e 'try{const{chromium}=require("playwright-core"),fs=require("fs");const p=chromium.executablePath();process.stdout.write(fs.existsSync(p)?p:"")}catch(e){}' 2>/dev/null)"
+fi
 if [ -n "$BROWSER" ]; then
   ok "浏览器: $BROWSER（渲染直接用，无需下载）"
+elif [ -n "$PW_CHROMIUM" ]; then
+  ok "浏览器: playwright chromium: $PW_CHROMIUM（无需系统 Chrome/Edge）"
 else
-  warn "没找到本机 Chrome/Edge —— 渲染时会回退 playwright 自带 chromium（首次 ~115MB 下载）"
-  if [ $INSTALL -eq 1 ]; then
-    echo "  → 可预下载：npx playwright install chromium（或设 BROWSER_PATH 指向任一 Chromium 系浏览器）"
-  fi
+  miss "没有可用浏览器（Chrome/Edge 或 playwright chromium 都没有）—— 设 BROWSER_PATH 或执行 npx playwright install chromium"
 fi
 
 # ---------- ffmpeg ----------

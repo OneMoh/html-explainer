@@ -12,7 +12,7 @@
 一条 **2 分钟的片子，全流程最快约 30 分钟**（调研 → 解说词 → 配音字幕 → 写画面 → 渲染 → 封面）。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.9-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.10-blue.svg)](CHANGELOG.md)
 [![Stars](https://img.shields.io/github/stars/OneMoh/html-explainer?style=flat&logo=github)](https://github.com/OneMoh/html-explainer/stargazers)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-SKILL.md-8A2BE2.svg)](SKILL.md)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%9C%93-D97757.svg)](#安装)
@@ -109,7 +109,7 @@ Windows 上 `~` 就是 `C:\Users\<你的用户名>`。
 
 | 项 | 最低 | 说明 |
 |---|---|---|
-| Python | 3.9+ | `edge-tts==7.2.8`（刻意钉死）、`numpy`、`pillow`、`imageio-ffmpeg`；火山引擎**零额外依赖**（只用标准库 `urllib`） |
+| Python | 3.9+ | `edge-tts==7.3.1`（刻意钉死；7.2.8 握手已被微软 403）、`numpy`、`pillow`、`imageio-ffmpeg`；火山引擎**零额外依赖**（只用标准库 `urllib`） |
 | Node.js | 18+ | 渲染器与封面器用 |
 | 浏览器 | Chrome 或 Edge | 自动探测；都没有才下载 playwright chromium（约 115MB，只需一次） |
 | ffmpeg | 任意版本 | 先在 `PATH` 找；没有则用 `imageio-ffmpeg` 自带的静态二进制 |
@@ -191,7 +191,7 @@ flowchart LR
 | 你要做什么 | 什么都不用做 | 填一次 API Key |
 | 费用 | 免费 | 按字符计费 |
 | 音色 | 内置中英文若干 | 豆包 2.0 音色库，含声音复刻 |
-| 额外依赖 | `edge-tts==7.2.8`、`imageio-ffmpeg` | **零** —— 只用标准库 `urllib` |
+| 额外依赖 | `edge-tts==7.3.1`、`imageio-ffmpeg` | **零** —— 只用标准库 `urllib` |
 | 什么时候选它 | 默认。开箱可用、够用 | 想要更自然的语气与更好音质 |
 
 选火山时，技能会生成 `tts.env` 并**停下来**让你把 Key 填进去 —— 这一步刻意不经过对话窗口：
@@ -254,6 +254,8 @@ my-video/
 | 封面出成 1 倍图 | 同上，`deviceScaleFactor` 的孪生坑 | 传 `newPage()` + `screenshot({ scale: 'device' })` |
 | 数字能渲染但永远不动 | seek 抑制了 `onUpdate` 回调 | 渲染器已修（`pause(t, false)`）；帧里改用 transform 数字卷轴 |
 | `--jpeg` 通道下 ffmpeg 首帧即崩（`unsupported coding type`） | 「hold 帧」被写成「后缀 `.jpg`、内容 PNG」的脏帧 | 升级到 v2.0.4 或更高（该版本已修） |
+| 日志打了「浏览器：…」却仍报 `Executable doesn't exist at …ms-playwright…` | v2.0.9 及之前只探测到系统浏览器、没把路径传给 `chromium.launch()` | 升级到 v2.0.10（已接上 `executablePath`）；临时可用 `--browser <path>` 或 `BROWSER_PATH` |
+| TTS 报 `WSServerHandshakeError: 403 Forbidden`（微软端点） | edge-tts 7.2.8 的握手已被微软拒绝，与网络无关 | 升级到 v2.0.10 后跑 `bash setup_env.sh --install`（pin 已提到 7.3.1），或手动 `pip install -U edge-tts==7.3.1` |
 | Windows 上 `No such file or directory` | 非 ASCII 路径 —— Windows 的 ffmpeg 把 UTF-8 当 ANSI 读 | 路径保持 ASCII |
 | 字幕开始飘 / 位置对不上 | TTS 没返回字级时间戳，`subs.py` 退回**按字数插值** | 看 `tts_build` 有没有打 `⚠ 未返回字级时间戳`；换个受支持的音色（中英文 2.0） |
 | 火山报 `resource ID is mismatched with speaker related resource` | `speaker` 收到了中文显示名而不是音色 ID；或复刻音色配了预置资源 ID | 音色用内置名/ID（接口包会解析）；复刻音色配 `VOLC_RESOURCE_ID=seed-icl-2.0` |

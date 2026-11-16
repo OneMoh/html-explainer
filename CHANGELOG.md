@@ -11,6 +11,26 @@
 
 ---
 
+## [2.0.10] — 2026-11-16
+
+> **两个来自 issue 的开箱即用 bug**：系统 Chrome 探测到了却没传进 `launch()`、edge-tts 旧 pin
+> 被微软端点 403。都不动画面与渲染算法，只把环境链路接回来。
+
+### 修复
+
+- **渲染器真正使用探测到的浏览器**（[#4](https://github.com/OneMoh/html-explainer/issues/4)）：
+  `render_video.mjs` 此前 `resolveBrowserExec()` 只打了一行日志，`launchOpts.executablePath` 从未赋值，
+  `playwright-core` 仍去自带目录找 chromium —— 没跑过 `npx playwright install chromium` 的机器必失败，
+  显式 `--browser <path>` 同样无效。现在把 `browserExec` 接进 `launchOpts`；两者都没有时提前退出，
+  给出 `--browser` / `BROWSER_PATH` / `npx playwright install chromium` 三种修法，不再甩晦涩的
+  `Executable doesn't exist`。
+- **edge-tts pin 7.2.8 → 7.3.1**（[#5](https://github.com/OneMoh/html-explainer/issues/5)）：
+  微软端点已拒绝 7.2.8 的握手（`403`），同机实测 7.3.1 首次即通且词级时间戳兼容。
+  `setup_env.sh` 的 pin 升级，自检改为**校验已装版本**（旧版判缺失并提示升级，不只是「import 得到」就算过），
+  中英 README 依赖表与排障条目同步。`tts_build.py` 无需改动 —— 它本来就动态探测 `boundary` 参数。
+- **`setup_env.sh` 浏览器自检认 playwright chromium**：此前只认系统 Chrome/Edge，装了自带 chromium
+  也照样告警；现在两者任一可用即通过，都没有才判缺失。
+
 ## [2.0.9] — 2026-11-05
 
 > **首屏补回渲染机制的技术表述。** 2.0.8 重写首屏时为了「先回答三个问题」，把这一段压成了

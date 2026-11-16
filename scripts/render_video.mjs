@@ -514,6 +514,15 @@ async function main() {
 
   const browserExec = args.browser || resolveBrowserExec();
   const launchOpts = { viewport: { width: pjW, height: pjH }, deviceScaleFactor: scale };
+  // 探测到的系统浏览器必须真正交给 launch()，否则 playwright-core 仍会去找自带 chromium。
+  if (browserExec) launchOpts.executablePath = browserExec;
+  else {
+    let bundled = null;
+    try { bundled = chromium.executablePath(); } catch { /* 老版本可能没有该 API */ }
+    if (!bundled || !fs.existsSync(bundled)) {
+      die('找不到可用浏览器：用 --browser <path> 或 BROWSER_PATH 指向 Chrome/Edge，或执行 npx playwright install chromium');
+    }
+  }
 
   log(`项目：${projectDir}`);
   log(`档位：${profName} · 场景 ${scenes.length} 个 · ${renderSec.toFixed(2)}s · ${totalFrames} 帧 @${fps}fps`);
